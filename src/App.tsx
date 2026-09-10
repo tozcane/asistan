@@ -10,7 +10,15 @@ import { MonthView } from './components/MonthView';
 import { TaskModal } from './components/TaskModal';
 import { InboxDrawer } from './components/InboxDrawer';
 import { MorningNotification } from './components/MorningNotification';
+import { SyncModal } from './components/SyncModal';
 import { sendMorningSummaryNotification } from './utils/notifications';
+import {
+  getStoredRoom,
+  saveStoredRoom,
+  clearStoredRoom,
+  fetchRoomTasks,
+  pushRoomTasks,
+} from './services/roomSyncService';
 
 const STORAGE_KEY = 'structured_app_tasks';
 const THEME_KEY = 'structured_app_theme';
@@ -48,6 +56,12 @@ export default function App() {
 
   // View Mode: 'day' | 'week' | 'month'
   const [viewMode, setViewMode] = useState<ViewMode>('day');
+
+  // Device Room Sync state
+  const [syncRoom, setSyncRoom] = useState<string | null>(() => getStoredRoom());
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
   // Sync tasks to LocalStorage
   useEffect(() => {
@@ -98,6 +112,94 @@ export default function App() {
       localStorage.setItem('structured_last_morning_date', today);
     }
   }, [selectedDate, dayTasks]);
+
+  // Push changes to room whenever tasks change
+  useEffect(() => {
+    if (!syncRoom) return;
+    const timer = setTimeout(async () => {
+      setIsSyncing(true);
+      const success = await pushRoomTasks(syncRoom, tasks);
+      if (success) {
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+      setIsSyncing(false);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [tasks, syncRoom]);
+
+  // Periodic pull from room to receive iPad / PC updates
+  useEffect(() => {
+    if (!syncRoom) return;
+
+    let isMounted = true;
+    const checkRemote = async () => {
+      try {
+        const res = await fetchRoomTasks(syncRoom);
+        if (!isMounted) return;
+        if (res.exists && Array.isArray(res.tasks) && res.tasks.length > 0) {
+          const remoteJson = JSON.stringify(res.tasks);
+          const localJson = JSON.stringify(tasks);
+          if (remoteJson !== localJson) {
+            setTasks(res.tasks);
+            setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          }
+        }
+      } catch {
+        // silent fail on network glitch
+      }
+    };
+
+    checkRemote();
+    const interval = setInterval(checkRemote, 3000);
+    const onFocus = () => checkRemote();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [syncRoom, tasks]);
+
+  const handleConnectRoom = async (room: string) => {
+    setIsSyncing(true);
+    try {
+      saveStoredRoom(room);
+      setSyncRoom(room);
+      const res = await fetchRoomTasks(room);
+      if (res.exists && Array.isArray(res.tasks) && res.tasks.length > 0) {
+        setTasks(res.tasks);
+      } else {
+        await pushRoomTasks(room, tasks);
+      }
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDisconnectRoom = () => {
+    clearStoredRoom();
+    setSyncRoom(null);
+    setLastSyncTime(null);
+  };
+
+  const handleManualSync = async () => {
+    if (!syncRoom) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetchRoomTasks(syncRoom);
+      if (res.exists && Array.isArray(res.tasks)) {
+        setTasks(res.tasks);
+      } else {
+        await pushRoomTasks(syncRoom, tasks);
+      }
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Task actions
   const handleToggleComplete = (taskId: string) => {
@@ -210,6 +312,9 @@ export default function App() {
         onLoadDemoData={handleLoadDemoData}
         currentView={viewMode}
         onChangeView={setViewMode}
+        currentRoom={syncRoom}
+        onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        isSyncing={isSyncing}
       />
 
       {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}
@@ -289,6 +394,18 @@ export default function App() {
         onClose={() => setIsMorningModalOpen(false)}
         tasks={dayTasks}
         dateStr={selectedDate}
+      />
+
+      {/* Device Sync Modal (iPad ↔ PC) */}
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        currentRoom={syncRoom}
+        onConnectRoom={handleConnectRoom}
+        onDisconnectRoom={handleDisconnectRoom}
+        onManualSync={handleManualSync}
+        lastSyncTime={lastSyncTime}
+        isSyncing={isSyncing}
       />
     </div>
   );

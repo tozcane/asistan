@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool } from 'lucide-react';
+import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -15,6 +15,9 @@ interface HeaderProps {
   onLoadDemoData: () => void;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
+  currentRoom: string | null;
+  onOpenSyncModal: () => void;
+  isSyncing: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
   onLoadDemoData,
   currentView,
   onChangeView,
+  currentRoom,
+  onOpenSyncModal,
+  isSyncing,
 }) => {
 
   // Generate date pills for a 15-day sliding window around today/selected
@@ -147,6 +153,28 @@ export const Header: React.FC<HeaderProps> = ({
             title={isDarkMode ? 'Açık Moda Geç' : 'Koyu Moda Geç'}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          {/* Device Sync Button */}
+          <button
+            className="icon-btn"
+            onClick={onOpenSyncModal}
+            title={currentRoom ? `Eşitlenen Oda: ${currentRoom}` : 'Cihazları Eşitle (iPad ↔ Bilgisayar)'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: currentRoom ? '5px 10px' : '7px 10px',
+              borderRadius: 14,
+              backgroundColor: currentRoom ? 'rgba(48, 209, 88, 0.14)' : 'rgba(10, 132, 255, 0.12)',
+              border: currentRoom ? '1px solid rgba(48, 209, 88, 0.35)' : '1px solid rgba(10, 132, 255, 0.25)',
+              color: currentRoom ? '#30D158' : '#0A84FF',
+              fontWeight: 700,
+              fontSize: 12,
+            }}
+          >
+            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+            <span>{currentRoom ? currentRoom : 'Eşitle'}</span>
           </button>
         </div>
       </div>
