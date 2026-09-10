@@ -210,6 +210,15 @@ export default function App() {
     );
   };
 
+  const handleSaveMultipleTasks = (newTasksData: Array<Omit<Task, 'id' | 'completed'>>) => {
+    const newTasks: Task[] = newTasksData.map((taskData, idx) => ({
+      ...taskData,
+      id: 'task_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4),
+      completed: false,
+    }));
+    setTasks((prev) => [...prev, ...newTasks]);
+  };
+
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'completed'> & { id?: string }) => {
     if (taskData.id) {
       // Update existing
@@ -424,7 +433,7 @@ export default function App() {
       <SiriVoiceModal
         isOpen={isSiriModalOpen}
         onClose={() => setIsSiriModalOpen(false)}
-        onAddTask={handleSaveTask}
+        onAddTasks={handleSaveMultipleTasks}
         selectedDate={selectedDate}
         currentRoom={syncRoom}
       />
