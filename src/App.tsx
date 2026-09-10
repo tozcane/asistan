@@ -40,7 +40,7 @@ export default function App() {
         // invalid json
       }
     }
-    return getInitialDemoTasks();
+    return [];
   });
 
   // Modal states
@@ -139,7 +139,7 @@ export default function App() {
       try {
         const res = await fetchRoomTasks(syncRoom);
         if (!isMounted) return;
-        if (res.exists && Array.isArray(res.tasks) && res.tasks.length > 0) {
+        if (res.exists && Array.isArray(res.tasks)) {
           const remoteJson = JSON.stringify(res.tasks);
           const localJson = JSON.stringify(tasks);
           if (remoteJson !== localJson) {
@@ -170,7 +170,7 @@ export default function App() {
       saveStoredRoom(room);
       setSyncRoom(room);
       const res = await fetchRoomTasks(room);
-      if (res.exists && Array.isArray(res.tasks) && res.tasks.length > 0) {
+      if (res.exists && Array.isArray(res.tasks)) {
         setTasks(res.tasks);
       } else {
         await pushRoomTasks(room, tasks);
@@ -289,6 +289,19 @@ export default function App() {
     setIsModalOpen(true);
   };
 
+  const handleClearAllTasks = async () => {
+    if (confirm('Tüm görevleri silmek istediğinize emin misiniz? Bu işlem tüm cihazlarınızdan görevleri temizler.')) {
+      setTasks([]);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      if (syncRoom) {
+        setIsSyncing(true);
+        await pushRoomTasks(syncRoom, []);
+        setIsSyncing(false);
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
+    }
+  };
+
   const handleLoadDemoData = () => {
     if (confirm('Örnek bir gün planı yüklemek istiyor musunuz? Mevcut görevler güncellenecektir.')) {
       setTasks(getInitialDemoTasks());
@@ -321,6 +334,7 @@ export default function App() {
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         dayStats={dayStats}
         onLoadDemoData={handleLoadDemoData}
+        onClearAllTasks={handleClearAllTasks}
         currentView={viewMode}
         onChangeView={setViewMode}
         currentRoom={syncRoom}

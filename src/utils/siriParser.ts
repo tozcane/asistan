@@ -3,6 +3,8 @@ export interface ParsedSchedule {
   date: string;
   time: string;
   durationMinutes: number;
+  color?: string;
+  icon?: string;
 }
 
 function getTurkeyDate(): Date {
@@ -20,7 +22,7 @@ function getTurkeyDate(): Date {
   return new Date(y, m - 1, d);
 }
 
-export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string): ParsedSchedule {
+export function parseSingleTurkishVoiceInput(rawText: string, defaultDateStr?: string): ParsedSchedule {
   let text = rawText.trim();
   const lower = text.toLowerCase();
   
@@ -123,7 +125,30 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
     }
   }
 
-  // 3. TITLE CLEANUP
+  // 3. SMART COLOR & ICON DETECTOR
+  let color = '#0A84FF';
+  let icon = 'sparkles';
+  if (/kahve|çay|sohbet|buluş/i.test(text)) {
+    color = '#FF9F0A';
+    icon = 'coffee';
+  } else if (/spor|koşu|antrenman|gym|fitness|yürüyüş|yüzme/i.test(text)) {
+    color = '#30D158';
+    icon = 'dumbbell';
+  } else if (/yemek|kahvaltı|restoran|döner|pizza/i.test(text)) {
+    color = '#FF9F0A';
+    icon = 'utensils';
+  } else if (/ders|kitap|çalış|ödev|kod|proje|toplantı|sunum|sınav/i.test(text)) {
+    color = '#0A84FF';
+    icon = 'book-open';
+  } else if (/doktor|hastane|diş|randevu|ilaç|sağlık/i.test(text)) {
+    color = '#FF453A';
+    icon = 'heart';
+  } else if (/market|bakkal|alışveriş|avm/i.test(text)) {
+    color = '#0A84FF';
+    icon = 'shopping-cart';
+  }
+
+  // 4. TITLE CLEANUP
   text = text
     .replace(/\b(?:saat|günü|gün|için|diye|olarak|adında|adıyla|ekle|kur|planla|yaz)\b/gi, '')
     .replace(/^[,\s.:;?!'’]+|[,\s.:;?!'’]+$/g, '')
@@ -144,5 +169,33 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
     date: dateStr,
     time,
     durationMinutes: 60,
+    color,
+    icon,
   };
 }
+
+export function parseMultipleTurkishVoiceInputs(rawText: string, defaultDateStr?: string): ParsedSchedule[] {
+  const trimmed = rawText.trim();
+  if (!trimmed) return [];
+
+  // Split by casual Turkish connectors without breaking "öğleden sonra"
+  const connectorRegex = /(?:,\s*)?(?:\b(?<!öğleden\s*)sonra\b|\bardından\b|\bdaha\s+sonra\b|\bbir\s+de\b|\bayrıca\b)/i;
+  const segments = trimmed.split(connectorRegex).map(s => s.trim()).filter(s => s.length > 2);
+
+  if (segments.length <= 1) {
+    return [parseSingleTurkishVoiceInput(trimmed, defaultDateStr)];
+  }
+
+  const results: ParsedSchedule[] = [];
+  let inheritedDate = defaultDateStr;
+
+  for (const seg of segments) {
+    const parsed = parseSingleTurkishVoiceInput(seg, inheritedDate);
+    inheritedDate = parsed.date; // subsequent tasks inherit the date if not mentioned
+    results.push(parsed);
+  }
+
+  return results;
+}
+
+export const parseTurkishVoiceInput = parseSingleTurkishVoiceInput;

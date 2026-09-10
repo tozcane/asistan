@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
+import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw, ChevronLeft, ChevronRight, Mic, Trash2 } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -13,6 +13,7 @@ interface HeaderProps {
   onToggleTheme: () => void;
   dayStats: DayStats;
   onLoadDemoData: () => void;
+  onClearAllTasks: () => void;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
   currentRoom: string | null;
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   dayStats,
   onLoadDemoData,
+  onClearAllTasks,
   currentView,
   onChangeView,
   currentRoom,
@@ -114,6 +116,16 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="header-actions">
+          {/* Clear All Tasks */}
+          <button
+            className="icon-btn"
+            onClick={onClearAllTasks}
+            title="Tüm Görevleri Sil"
+            style={{ color: '#FF453A' }}
+          >
+            <Trash2 size={17} />
+          </button>
+
           {/* Demo Data button */}
           <button
             className="icon-btn"

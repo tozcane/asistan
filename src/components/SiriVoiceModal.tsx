@@ -26,7 +26,7 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
   const [activeTab, setActiveTab] = useState<'voice' | 'text' | 'shortcut'>('voice');
   const [statusMessage, setStatusMessage] = useState<string>('Sizi dinliyorum...');
   const [isSaved, setIsSaved] = useState(false);
-  const [aiSource, setAiSource] = useState<'gemini' | 'fallback' | null>(null);
+  const [aiSource, setAiSource] = useState<'gemini' | 'offline' | 'fallback' | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const autoCommitTimerRef = useRef<any>(null);
@@ -466,7 +466,7 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Sparkles size={13} color="#0A84FF" />
-                  {aiSource === 'gemini' ? 'GEMİNİ YAPAY ZEKA ÇÖZÜMLEMESİ' : 'ALGILANAN GÖREVLER'} ({parsedTasks.length})
+                  {aiSource === 'gemini' ? '✨ GEMİNİ YAPAY ZEKA' : aiSource === 'offline' ? '📶 CİHAZ İÇİ (İNTERNETSİZ)' : 'ALGILANAN GÖREVLER'} ({parsedTasks.length})
                 </span>
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#30D158', background: 'rgba(48,209,88,0.15)', padding: '2px 8px', borderRadius: 8 }}>
                   {isSaved ? 'Takvime Eklendi ✓' : 'Birazdan otomatik eklenir'}
