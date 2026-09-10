@@ -107,17 +107,8 @@ export const MonthView: React.FC<MonthViewProps> = ({
 
           <button
             type="button"
+            className="month-today-btn"
             onClick={handleToday}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: 13,
-              fontWeight: 700,
-              padding: '6px 14px',
-              borderRadius: 12,
-              cursor: 'pointer',
-            }}
           >
             Bugün
           </button>

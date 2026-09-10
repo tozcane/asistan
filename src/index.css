@@ -1282,7 +1282,7 @@ body {
   }
 }
 
-/* Month View Styles (Full Width, Compact White Cells) */
+/* Month View Styles */
 .month-view-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -1299,10 +1299,43 @@ body {
 }
 
 .month-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--text-primary);
   letter-spacing: -0.3px;
+}
+
+/* Gündüz modunda ayların isimleri bölümü siyah */
+[data-theme='light'] .month-title {
+  color: #000000 !important;
+}
+
+:root .month-title {
+  color: #ffffff;
+}
+
+/* Bugün butonu */
+.month-today-btn {
+  background: var(--surface-color, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* Gündüz modunda bugün yazısı siyah */
+[data-theme='light'] .month-today-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: #000000 !important;
+}
+
+:root .month-today-btn {
+  color: #ffffff;
 }
 
 .month-calendar-grid {
@@ -1313,16 +1346,22 @@ body {
 
 .month-weekday-header {
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-secondary);
   padding-bottom: 6px;
   text-transform: uppercase;
 }
 
+/* Gündüz modunda gün isimleri siyah */
+[data-theme='light'] .month-weekday-header {
+  color: #000000 !important;
+}
+
+/* Gece modunda sitenin renkleri tam tersine döner */
 .month-day-cell {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--bg-card, #1c1c1e);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   height: 96px;
   min-height: 96px;
@@ -1335,44 +1374,63 @@ body {
   transition: all 0.15s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .month-day-cell:hover {
-  background: #f8f8fa;
+  background: var(--bg-card-hover, #242426);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+}
+
+.month-day-number {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Gündüz modunda beyaz hücreler, siyah yazılar */
+[data-theme='light'] .month-day-cell {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme='light'] .month-day-cell:hover {
+  background: #f8f8fa;
+}
+
+[data-theme='light'] .month-day-number {
+  color: #000000 !important;
 }
 
 .month-day-cell.other-month {
+  opacity: 0.35;
+}
+
+[data-theme='light'] .month-day-cell.other-month {
   background: #f2f2f7;
   opacity: 0.55;
 }
 
 .month-day-cell.other-month .month-day-number {
-  color: #8e8e93;
+  color: var(--text-muted);
 }
 
 .month-day-cell.selected {
   border: 2px solid #0a84ff;
-  box-shadow: 0 0 14px rgba(10, 132, 255, 0.25);
+  box-shadow: 0 0 14px rgba(10, 132, 255, 0.3);
 }
 
 .month-day-cell.today .month-day-number {
   background: #0a84ff;
-  color: #ffffff;
+  color: #ffffff !important;
   border-radius: 50%;
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.month-day-number {
-  font-size: 15px;
-  font-weight: 800;
-  color: #000000; /* SİYAH SAYILAR */
 }
 
 .month-day-holiday-badge {
