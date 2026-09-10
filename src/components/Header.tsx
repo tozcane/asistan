@@ -1,8 +1,8 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, User, Calendar, PenTool } from 'lucide-react';
+import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
-import type { DayStats, UserProfile, SyncStatus } from '../types';
+import type { DayStats } from '../types';
 
 export type ViewMode = 'day' | 'week' | 'month';
 
@@ -13,9 +13,6 @@ interface HeaderProps {
   onToggleTheme: () => void;
   dayStats: DayStats;
   onLoadDemoData: () => void;
-  currentUser: UserProfile | null;
-  syncStatus: SyncStatus;
-  onOpenAuthModal: () => void;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
 }
@@ -27,9 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   dayStats,
   onLoadDemoData,
-  currentUser,
-  syncStatus,
-  onOpenAuthModal,
   currentView,
   onChangeView,
 }) => {
@@ -153,71 +147,6 @@ export const Header: React.FC<HeaderProps> = ({
             title={isDarkMode ? 'Açık Moda Geç' : 'Koyu Moda Geç'}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          {/* Account / Cloud Sync Button */}
-          <button
-            className="icon-btn"
-            onClick={onOpenAuthModal}
-            title={currentUser ? `${currentUser.displayName || currentUser.email} (Bulut Hesabı)` : 'Google ile Giriş Yap'}
-            style={{
-              position: 'relative',
-              padding: 2,
-              overflow: 'visible',
-            }}
-          >
-            {currentUser?.photoURL ? (
-              <img
-                src={currentUser.photoURL}
-                alt="Avatar"
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : currentUser ? (
-              <div
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: '50%',
-                  backgroundColor: '#0A84FF',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                {(currentUser.displayName || 'U').charAt(0).toUpperCase()}
-              </div>
-            ) : (
-              <User size={18} />
-            )}
-
-            {/* Cloud Sync Status Indicator Dot */}
-            {currentUser && (
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: -1,
-                  right: -1,
-                  width: 9,
-                  height: 9,
-                  borderRadius: '50%',
-                  backgroundColor:
-                    syncStatus === 'syncing'
-                      ? '#0A84FF'
-                      : syncStatus === 'error'
-                      ? '#FF453A'
-                      : '#30D158',
-                  border: '2px solid var(--surface-color)',
-                }}
-              />
-            )}
           </button>
         </div>
       </div>

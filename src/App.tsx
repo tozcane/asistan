@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Inbox } from 'lucide-react';
-import type { Task, DayStats, UserProfile, SyncStatus } from './types';
+import type { Task, DayStats } from './types';
 import { getTodayDateString } from './utils/time';
 import { STRUCTURED_COLORS } from './constants/theme';
 import { Header, type ViewMode } from './components/Header';
@@ -10,10 +10,7 @@ import { MonthView } from './components/MonthView';
 import { TaskModal } from './components/TaskModal';
 import { InboxDrawer } from './components/InboxDrawer';
 import { MorningNotification } from './components/MorningNotification';
-import { AuthModal } from './components/AuthModal';
 import { sendMorningSummaryNotification } from './utils/notifications';
-import { subscribeToAuthChanges } from './services/authService';
-import { saveTasksToCloud, loadTasksFromCloud, subscribeToCloudTasks } from './services/syncService';
 
 const STORAGE_KEY = 'structured_app_tasks';
 const THEME_KEY = 'structured_app_theme';
@@ -48,12 +45,6 @@ export default function App() {
 
   // Morning briefing modal state
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
-
-  // Auth & Cloud Sync states
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // View Mode: 'day' | 'week' | 'month'
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -107,69 +98,6 @@ export default function App() {
       localStorage.setItem('structured_last_morning_date', today);
     }
   }, [selectedDate, dayTasks]);
-
-  // Listen to Auth State and synchronize tasks
-  useEffect(() => {
-    const unsubscribe = subscribeToAuthChanges(async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        setSyncStatus('syncing');
-        const cloudTasks = await loadTasksFromCloud(user.uid);
-        if (cloudTasks && cloudTasks.length > 0) {
-          setTasks(cloudTasks);
-        } else {
-          // Push local tasks to cloud for first time
-          await saveTasksToCloud(user.uid, tasks);
-        }
-        setSyncStatus('synced');
-        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      } else {
-        setSyncStatus('idle');
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Listen to remote changes in real-time
-  useEffect(() => {
-    if (!currentUser) return;
-    const unsubscribe = subscribeToCloudTasks(currentUser.uid, (updatedTasks) => {
-      setTasks(updatedTasks);
-      setSyncStatus('synced');
-      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    });
-    return () => unsubscribe();
-  }, [currentUser]);
-
-  // Debounced Auto-Save to Cloud when tasks change
-  useEffect(() => {
-    if (!currentUser) return;
-    const timer = setTimeout(async () => {
-      setSyncStatus('syncing');
-      const success = await saveTasksToCloud(currentUser.uid, tasks);
-      if (success) {
-        setSyncStatus('synced');
-        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      } else {
-        setSyncStatus('error');
-      }
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [tasks, currentUser]);
-
-  const handleForceSync = async () => {
-    if (!currentUser) return;
-    setSyncStatus('syncing');
-    const success = await saveTasksToCloud(currentUser.uid, tasks);
-    if (success) {
-      setSyncStatus('synced');
-      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-    } else {
-      setSyncStatus('error');
-    }
-  };
 
   // Task actions
   const handleToggleComplete = (taskId: string) => {
@@ -280,9 +208,6 @@ export default function App() {
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         dayStats={dayStats}
         onLoadDemoData={handleLoadDemoData}
-        currentUser={currentUser}
-        syncStatus={syncStatus}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
         currentView={viewMode}
         onChangeView={setViewMode}
       />
@@ -364,16 +289,6 @@ export default function App() {
         onClose={() => setIsMorningModalOpen(false)}
         tasks={dayTasks}
         dateStr={selectedDate}
-      />
-
-      {/* Google Auth & Cloud Sync Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        syncStatus={syncStatus}
-        lastSyncTime={lastSyncTime}
-        onForceSync={handleForceSync}
       />
     </div>
   );
