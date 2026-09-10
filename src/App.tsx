@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Inbox, Mic } from 'lucide-react';
 import type { Task, DayStats } from './types';
 import { getTodayDateString } from './utils/time';
@@ -64,6 +64,8 @@ export default function App() {
   const [isSiriModalOpen, setIsSiriModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const lastLocalEditTimeRef = useRef<number>(0);
+  const isRemoteUpdateRef = useRef<boolean>(false);
 
   // Sync tasks to LocalStorage
   useEffect(() => {
@@ -118,6 +120,11 @@ export default function App() {
   // Push changes to room whenever tasks change
   useEffect(() => {
     if (!syncRoom) return;
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
     const timer = setTimeout(async () => {
       setIsSyncing(true);
       const success = await pushRoomTasks(syncRoom, tasks);
@@ -125,7 +132,7 @@ export default function App() {
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
       setIsSyncing(false);
-    }, 600);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [tasks, syncRoom]);
@@ -136,14 +143,21 @@ export default function App() {
 
     let isMounted = true;
     const checkRemote = async () => {
+      // If user modified tasks locally in the last 4 seconds, don't overwrite!
+      if (Date.now() - lastLocalEditTimeRef.current < 4000) return;
+
       try {
         const res = await fetchRoomTasks(syncRoom);
         if (!isMounted) return;
+        if (Date.now() - lastLocalEditTimeRef.current < 4000) return;
+
         if (res.exists && Array.isArray(res.tasks)) {
           const remoteJson = JSON.stringify(res.tasks);
-          const localJson = JSON.stringify(tasks);
+          const localJson = localStorage.getItem(STORAGE_KEY) || '[]';
           if (remoteJson !== localJson) {
+            isRemoteUpdateRef.current = true;
             setTasks(res.tasks);
+            localStorage.setItem(STORAGE_KEY, remoteJson);
             setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
           }
         }
@@ -162,7 +176,7 @@ export default function App() {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
     };
-  }, [syncRoom, tasks]);
+  }, [syncRoom]);
 
   const handleConnectRoom = async (room: string) => {
     setIsSyncing(true);
@@ -203,43 +217,70 @@ export default function App() {
     }
   };
 
-  // Task actions
+  // Task actions with immediate local and remote sync
   const handleToggleComplete = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
-    );
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      const updated = prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        pushRoomTasks(syncRoom, updated);
+      }
+      return updated;
+    });
   };
 
   const handleSaveMultipleTasks = (newTasksData: Array<Omit<Task, 'id' | 'completed'>>) => {
-    const newTasks: Task[] = newTasksData.map((taskData, idx) => ({
-      ...taskData,
-      id: 'task_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4),
-      completed: false,
-    }));
-    setTasks((prev) => [...prev, ...newTasks]);
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      const newTasks: Task[] = newTasksData.map((taskData, idx) => ({
+        ...taskData,
+        id: 'task_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4),
+        completed: false,
+      }));
+      const updated = [...prev, ...newTasks];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        pushRoomTasks(syncRoom, updated);
+      }
+      return updated;
+    });
   };
 
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'completed'> & { id?: string }) => {
-    if (taskData.id) {
-      // Update existing
-      setTasks((prev) =>
-        prev.map((t) =>
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      let updated: Task[];
+      if (taskData.id) {
+        updated = prev.map((t) =>
           t.id === taskData.id ? { ...t, ...taskData, completed: t.completed } : t
-        )
-      );
-    } else {
-      // Create new
-      const newTask: Task = {
-        ...taskData,
-        id: 'task_' + Date.now() + Math.random().toString(36).substr(2, 4),
-        completed: false,
-      };
-      setTasks((prev) => [...prev, newTask]);
-    }
+        );
+      } else {
+        const newTask: Task = {
+          ...taskData,
+          id: 'task_' + Date.now() + Math.random().toString(36).substr(2, 4),
+          completed: false,
+        };
+        updated = [...prev, newTask];
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        pushRoomTasks(syncRoom, updated);
+      }
+      return updated;
+    });
   };
 
   const handleDeleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      const updated = prev.filter((t) => t.id !== taskId);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        pushRoomTasks(syncRoom, updated);
+      }
+      return updated;
+    });
   };
 
   // Open modal with specific time slot (e.g. from clicking a Free Time card)
