@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw } from 'lucide-react';
+import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -17,6 +17,7 @@ interface HeaderProps {
   onChangeView: (view: ViewMode) => void;
   currentRoom: string | null;
   onOpenSyncModal: () => void;
+  onOpenSiriModal: () => void;
   isSyncing: boolean;
 }
 
@@ -31,33 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   onChangeView,
   currentRoom,
   onOpenSyncModal,
+  onOpenSiriModal,
   isSyncing,
 }) => {
-
-  // Generate date pills for a 15-day sliding window around today/selected
-  const datePills = React.useMemo(() => {
-    const pills: { dateStr: string; dayName: string; dayNum: number; isToday: boolean }[] = [];
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-
-    const todayStr = formatDateString(base);
-    const shortDays = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cts'];
-
-    // 5 days in past, 9 days in future
-    for (let offset = -5; offset <= 9; offset++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + offset);
-      const str = formatDateString(d);
-
-      pills.push({
-        dateStr: str,
-        dayName: shortDays[d.getDay()],
-        dayNum: d.getDate(),
-        isToday: str === todayStr,
-      });
-    }
-    return pills;
-  }, []);
 
   const dateLabels = getTurkishDateLabel(selectedDate);
   const holiday = getHolidayForDate(selectedDate);
@@ -155,6 +132,20 @@ export const Header: React.FC<HeaderProps> = ({
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
+          {/* Siri Voice Button */}
+          <button
+            className="icon-btn"
+            onClick={onOpenSiriModal}
+            title="Siri & Sesli Asistan (Mikrofon)"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 45, 85, 0.15) 0%, rgba(175, 82, 222, 0.15) 50%, rgba(10, 132, 255, 0.15) 100%)',
+              border: '1px solid rgba(175, 82, 222, 0.35)',
+              color: '#af52de',
+            }}
+          >
+            <Mic size={16} />
+          </button>
+
           {/* Device Sync Button */}
           <button
             className="icon-btn"
@@ -206,70 +197,67 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Horizontal Date Strip (visible in Day view) */}
+      {/* Day Single Header - Sadece o günün tarihi ve kompakt kontroller */}
       {currentView === 'day' && (
-        <div className="date-strip">
-          {datePills.map((pill) => {
-            const isActive = pill.dateStr === selectedDate;
-            const pillHoliday = getHolidayForDate(pill.dateStr);
-            return (
-              <div
-                key={pill.dateStr}
-                className={`date-pill ${isActive ? 'active' : ''}`}
-                onClick={() => onSelectDate(pill.dateStr)}
-                title={pillHoliday ? `${pillHoliday.badge} ${pillHoliday.name}` : undefined}
-              >
-                <span className="date-pill-day">{pill.dayName}</span>
-                <div className="date-pill-num-wrapper">
-                  {pill.dayNum}
-                  {pillHoliday && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: -3,
-                        right: -3,
-                        fontSize: 9,
-                      }}
-                    >
-                      {pillHoliday.badge}
-                    </span>
-                  )}
-                </div>
-                {pill.isToday && <div className="today-dot" />}
-              </div>
-            );
-          })}
-        </div>
-      )}
+        <div className="day-single-header">
+          <div className="day-single-nav">
+            <button
+              type="button"
+              className="day-nav-arrow"
+              onClick={() => {
+                const [y, m, d] = selectedDate.split('-').map(Number);
+                const prev = new Date(y, m - 1, d - 1);
+                onSelectDate(formatDateString(prev));
+              }}
+              title="Önceki Gün"
+            >
+              <ChevronLeft size={18} />
+            </button>
 
-      {/* Day Overview Banner (visible in Day view) */}
-      {currentView === 'day' && (
-        <div className="day-summary-banner">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <div className="day-info-title">{dateLabels.title}</div>
-              {holiday && (
-                <div className="holiday-pill-banner">
-                  <span>{holiday.badge}</span>
-                  <span>{holiday.name}</span>
-                </div>
-              )}
+            <div className="day-single-text-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="day-single-title">{dateLabels.title}</span>
+                {holiday && (
+                  <span className="holiday-badge-compact">
+                    {holiday.badge} {holiday.name}
+                  </span>
+                )}
+              </div>
+              <span className="day-single-subtitle">{dateLabels.subtitle}</span>
             </div>
-            <div className="day-info-subtitle">{dateLabels.subtitle}</div>
+
+            <button
+              type="button"
+              className="day-nav-arrow"
+              onClick={() => {
+                const [y, m, d] = selectedDate.split('-').map(Number);
+                const next = new Date(y, m - 1, d + 1);
+                onSelectDate(formatDateString(next));
+              }}
+              title="Sonraki Gün"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
 
-          {dayStats.totalTasks > 0 ? (
-            <div className="progress-pill">
-              <Sparkles size={16} />
-              <span>
-                {dayStats.completedTasks}/{dayStats.totalTasks} ({completionPercentage}%)
-              </span>
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              Planlanmış görev yok
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {selectedDate !== formatDateString(new Date()) && (
+              <button
+                type="button"
+                className="today-pill-btn"
+                onClick={() => onSelectDate(formatDateString(new Date()))}
+              >
+                Bugün
+              </button>
+            )}
+
+            {dayStats.totalTasks > 0 && (
+              <div className="progress-pill-compact">
+                <Sparkles size={13} />
+                <span>{dayStats.completedTasks}/{dayStats.totalTasks} ({completionPercentage}%)</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </header>

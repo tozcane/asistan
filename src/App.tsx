@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Inbox } from 'lucide-react';
+import { Plus, Inbox, Mic } from 'lucide-react';
 import type { Task, DayStats } from './types';
 import { getTodayDateString } from './utils/time';
 import { STRUCTURED_COLORS } from './constants/theme';
@@ -11,6 +11,7 @@ import { TaskModal } from './components/TaskModal';
 import { InboxDrawer } from './components/InboxDrawer';
 import { MorningNotification } from './components/MorningNotification';
 import { SyncModal } from './components/SyncModal';
+import { SiriVoiceModal } from './components/SiriVoiceModal';
 import { sendMorningSummaryNotification } from './utils/notifications';
 import {
   getStoredRoom,
@@ -60,6 +61,7 @@ export default function App() {
   // Device Room Sync state
   const [syncRoom, setSyncRoom] = useState<string | null>(() => getStoredRoom());
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isSiriModalOpen, setIsSiriModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
@@ -314,6 +316,7 @@ export default function App() {
         onChangeView={setViewMode}
         currentRoom={syncRoom}
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
+        onOpenSiriModal={() => setIsSiriModalOpen(true)}
         isSyncing={isSyncing}
       />
 
@@ -353,11 +356,20 @@ export default function App() {
       {/* Floating Action Bar */}
       <div className="floating-bar">
         <button className="add-task-btn" onClick={handleOpenGeneralNewModal}>
-          <Plus size={20} /> Yeni Görev
+          <Plus size={18} /> Yeni Görev
+        </button>
+
+        <button
+          className="siri-pill-btn"
+          onClick={() => setIsSiriModalOpen(true)}
+          title="Siri & Sesli Asistan ile Görev Ekle"
+        >
+          <Mic size={16} />
+          <span>Siri</span>
         </button>
 
         <button className="inbox-pill-btn" onClick={() => setIsInboxOpen(true)}>
-          <Inbox size={18} />
+          <Inbox size={17} />
           <span>Havuz</span>
           {inboxTasks.length > 0 && (
             <span className="inbox-count-badge">{inboxTasks.length}</span>
@@ -406,6 +418,15 @@ export default function App() {
         onManualSync={handleManualSync}
         lastSyncTime={lastSyncTime}
         isSyncing={isSyncing}
+      />
+
+      {/* Siri Voice & Shortcuts Modal */}
+      <SiriVoiceModal
+        isOpen={isSiriModalOpen}
+        onClose={() => setIsSiriModalOpen(false)}
+        onAddTask={handleSaveTask}
+        selectedDate={selectedDate}
+        currentRoom={syncRoom}
       />
     </div>
   );
