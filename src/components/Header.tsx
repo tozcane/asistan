@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, User } from 'lucide-react';
+import { Sun, Moon, Sparkles, RotateCcw, User, Calendar, PenTool } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats, UserProfile, SyncStatus } from '../types';
@@ -70,8 +70,44 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Brand & Actions */}
       <div className="top-bar-header">
         <div className="brand-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="brand-icon">⚡</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              className="brand-icon"
+              style={{
+                position: 'relative',
+                width: 34,
+                height: 34,
+                background: 'linear-gradient(135deg, #0A84FF 0%, #0056b3 100%)',
+                borderRadius: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(10, 132, 255, 0.35)',
+              }}
+            >
+              {/* Takvim Simgesi */}
+              <Calendar size={18} color="#ffffff" strokeWidth={2.2} />
+
+              {/* Takvim Üzerindeki Kalem Simgesi */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  right: -2,
+                  background: '#FF9F0A',
+                  borderRadius: '50%',
+                  width: 16,
+                  height: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid #000000',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.4)',
+                }}
+              >
+                <PenTool size={9} color="#ffffff" strokeWidth={2.6} />
+              </div>
+            </div>
             <span>Asistan</span>
           </div>
           <div
