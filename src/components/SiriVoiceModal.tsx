@@ -24,11 +24,17 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
   const [activeTab, setActiveTab] = useState<'voice' | 'shortcut'>('voice');
   const [statusMessage, setStatusMessage] = useState<string>('Sizi dinliyorum...');
   const [isSaved, setIsSaved] = useState(false);
+  
   const recognitionRef = useRef<any>(null);
   const autoSaveTimerRef = useRef<any>(null);
+  const isSavedRef = useRef(false);
+  const shouldListenRef = useRef(false);
+  const currentParsedRef = useRef<ParsedSchedule | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
+      shouldListenRef.current = false;
+      isSavedRef.current = false;
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch {}
       }
@@ -40,11 +46,15 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
       return;
     }
 
+    isSavedRef.current = false;
+    shouldListenRef.current = true;
+
     if (activeTab === 'voice') {
       startListening();
     }
 
     return () => {
+      shouldListenRef.current = false;
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch {}
       }
@@ -53,9 +63,16 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
   }, [isOpen, activeTab]);
 
   const autoCommit = (parsed: ParsedSchedule) => {
-    if (!parsed.title || isSaved) return;
+    if (!parsed.title || isSavedRef.current) return;
+    isSavedRef.current = true;
+    shouldListenRef.current = false;
     setIsSaved(true);
-    setStatusMessage(`✓ Otomatik Eklendi: ${parsed.title} (${parsed.date} ${parsed.time})`);
+    setStatusMessage(`✓ Kuruldu: "${parsed.title}" (${parsed.date} saat ${parsed.time})`);
+
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+    }
+    clearTimeout(autoSaveTimerRef.current);
     
     onAddTask({
       title: parsed.title,
@@ -68,7 +85,7 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
 
     setTimeout(() => {
       onClose();
-    }, 1100);
+    }, 1200);
   };
 
   const startListening = () => {
@@ -81,17 +98,18 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
     }
 
     try {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+
       const recognition = new SpeechRecognition();
       recognition.lang = 'tr-TR';
-      recognition.continuous = false;
+      recognition.continuous = true; // KESİNLİKLE KAPANMAZ, SÜREKLİ DİNLER
       recognition.interimResults = true;
 
       recognition.onstart = () => {
         setIsListening(true);
-        setTranscript('');
-        setPreview(null);
-        setIsSaved(false);
-        setStatusMessage('Sizi dinliyorum... (Tarih, saat ve konuyu söyleyin)');
+        setStatusMessage('Sizi dinliyorum, rahatça konuşun...');
       };
 
       recognition.onresult = (event: any) => {
@@ -104,27 +122,45 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
         if (text.trim().length > 2) {
           const parsed = parseTurkishVoiceInput(text, selectedDate);
           setPreview(parsed);
+          currentParsedRef.current = parsed;
 
-          // Auto-commit after 1.4s of pause
+          // Uzun sessizlik süresi: 4 tam saniye susarsa otomatik kaydeder
           clearTimeout(autoSaveTimerRef.current);
+          setStatusMessage('Dinliyorum... (Susunca 4 sn sonra otomatik kurulur)');
+          
           autoSaveTimerRef.current = setTimeout(() => {
-            autoCommit(parsed);
-          }, 1400);
+            if (!isSavedRef.current && currentParsedRef.current) {
+              autoCommit(currentParsedRef.current);
+            }
+          }, 4000);
         }
       };
 
       recognition.onerror = (event: any) => {
+        if (event.error === 'no-speech') {
+          // Sessizlikte hemen kapanmasın, dinlemeye devam etsin
+          return;
+        }
         console.error('Speech error:', event);
-        setIsListening(false);
-        setStatusMessage('Ses algılanamadı. Mikrofona tekrar dokunup deneyin.');
       };
 
       recognition.onend = () => {
-        setIsListening(false);
+        // Kullanıcı henüz kaydetmediyse ve modal açıksa otomatik olarak dinlemeye devam et
+        if (shouldListenRef.current && !isSavedRef.current) {
+          try {
+            recognition.start();
+            setIsListening(true);
+          } catch {
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
+        }
       };
 
       recognitionRef.current = recognition;
       recognition.start();
+      setIsListening(true);
     } catch (e) {
       console.error(e);
       setIsListening(false);
@@ -132,10 +168,12 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
   };
 
   const stopListening = () => {
+    shouldListenRef.current = false;
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
     }
     setIsListening(false);
+    setStatusMessage('Dinleme duraklatıldı. Mikrofona basarak devam edebilirsiniz.');
   };
 
   if (!isOpen) return null;
@@ -279,7 +317,7 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
                       ALGILANAN GÖREV
                     </span>
                     <span style={{ fontSize: 10, fontWeight: 700, color: '#30D158', background: 'rgba(48,209,88,0.15)', padding: '2px 6px', borderRadius: 6 }}>
-                      {isSaved ? 'Kaydedildi ✓' : 'Otomatik Kuruluyor...'}
+                      {isSaved ? 'Kuruldu ✓' : 'Uzun susarsanız otomatik kurulur'}
                     </span>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -293,6 +331,26 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
                       <Clock size={13} color="#FF9F0A" /> {preview.time}
                     </span>
                   </div>
+
+                  {!isSaved && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => autoCommit(preview)}
+                      style={{
+                        marginTop: 6,
+                        padding: '8px 12px',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Check size={15} /> Beklemeden Hemen Kur
+                    </button>
+                  )}
                 </div>
               )}
             </div>
