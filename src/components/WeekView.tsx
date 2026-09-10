@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Check, Clock } from 'lucide-react';
 import type { Task } from '../types';
-import { formatDateString, formatDuration } from '../utils/time';
+import { formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 
 interface WeekViewProps {
@@ -28,7 +28,6 @@ export const WeekView: React.FC<WeekViewProps> = ({
     const curr = new Date(year, month - 1, day);
     
     // In JS, getDay(): 0 = Sun, 1 = Mon ... 6 = Sat
-    // To make Monday the first day:
     const dayOfWeek = curr.getDay();
     const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     
@@ -62,170 +61,105 @@ export const WeekView: React.FC<WeekViewProps> = ({
           .sort((a, b) => ((a.startTime || '00:00') > (b.startTime || '00:00') ? 1 : -1));
 
         const holiday = getHolidayForDate(day.dateStr);
-        const totalMinutes = dayTasks.reduce((acc, t) => acc + (t.durationMinutes || 0), 0);
         const completedCount = dayTasks.filter((t) => t.completed).length;
 
         return (
           <div
             key={day.dateStr}
-            className={`week-day-card ${day.isToday ? 'today' : ''}`}
+            className={`week-day-strip ${day.isToday ? 'today' : ''}`}
           >
-            {/* Header of the Day */}
-            <div className="week-day-header">
-              <div className="week-day-title-box">
-                <div className="week-day-num">{day.dayNum}</div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className="week-day-name">{day.dayName}</span>
+            {/* Header / Day info for mobile and desktop */}
+            <div className="week-strip-main-row">
+              {/* Day info (Left) */}
+              <div
+                className="week-strip-day-col"
+                onClick={() => onSwitchToDayView(day.dateStr)}
+                title={`${day.dayName} gününün detayına git`}
+              >
+                <div className="week-strip-num">{day.dayNum}</div>
+                <div className="week-strip-name-box">
+                  <div className="week-strip-name-row">
+                    <span className="week-strip-day-name">{day.dayName}</span>
                     {day.isToday && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          backgroundColor: '#0a84ff',
-                          color: '#ffffff',
-                          padding: '1px 6px',
-                          borderRadius: 8,
-                        }}
-                      >
-                        BUGÜN
-                      </span>
+                      <span className="week-strip-today-badge">BUGÜN</span>
                     )}
                   </div>
-                  {/* Holiday Badge (Resmi / Dini Bayram) */}
                   {holiday && (
-                    <div className="holiday-pill-banner" style={{ marginTop: 2, padding: '2px 8px', fontSize: 12 }}>
-                      <span>{holiday.badge}</span>
-                      <span>{holiday.name}</span>
-                    </div>
+                    <span className="week-strip-holiday" title={holiday.name}>
+                      {holiday.badge} {holiday.name}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Day stats & Actions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Tasks Area (Middle in desktop, below in mobile) */}
+              <div className="week-strip-tasks-area">
+                {dayTasks.length === 0 ? (
+                  <div
+                    className="week-strip-empty"
+                    onClick={() => onAddNewAtDate(day.dateStr)}
+                  >
+                    + Görev ekle
+                  </div>
+                ) : (
+                  <div className="week-strip-tasks-flow">
+                    {dayTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className={`week-task-pill ${task.completed ? 'completed' : ''}`}
+                        style={{
+                          backgroundColor: task.color,
+                        }}
+                        onClick={() => onEditTask(task)}
+                      >
+                        <button
+                          type="button"
+                          className="week-task-check"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleComplete(task.id);
+                          }}
+                          aria-label="Tamamla"
+                        >
+                          {task.completed && (
+                            <Check size={11} strokeWidth={3.5} color={task.color} />
+                          )}
+                        </button>
+                        <span className="week-task-title">{task.title}</span>
+                        {task.startTime && (
+                          <span className="week-task-time">
+                            <Clock size={10} /> {task.startTime}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions (Right) */}
+              <div className="week-strip-actions">
                 {dayTasks.length > 0 && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    {completedCount}/{dayTasks.length} ({formatDuration(totalMinutes)})
+                  <span className="week-strip-count">
+                    {completedCount}/{dayTasks.length}
                   </span>
                 )}
-
                 <button
                   type="button"
-                  className="icon-btn"
+                  className="week-strip-add-btn"
                   onClick={() => onAddNewAtDate(day.dateStr)}
-                  title="Bu güne görev ekle"
-                  style={{ width: 32, height: 32 }}
+                  title="Bu güne yeni görev ekle"
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                 </button>
-
                 <button
                   type="button"
+                  className="week-strip-goto-btn"
                   onClick={() => onSwitchToDayView(day.dateStr)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#ffffff',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    padding: '6px 10px',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                  }}
                 >
                   Güne Git
                 </button>
               </div>
-            </div>
-
-            {/* List of Tasks in this Day (White cards, Black text) */}
-            <div className="week-day-tasks-list">
-              {dayTasks.length === 0 ? (
-                <div
-                  style={{
-                    padding: '14px 10px',
-                    textAlign: 'center',
-                    color: 'var(--text-muted)',
-                    fontSize: 13,
-                    fontStyle: 'italic',
-                  }}
-                >
-                  Görev planlanmadı
-                </div>
-              ) : (
-                dayTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`task-card ${task.completed ? 'completed' : ''}`}
-                    onClick={() => onEditTask(task)}
-                    style={{
-                      background: task.color,
-                      padding: '10px 14px',
-                      cursor: 'pointer',
-                      borderRadius: 14,
-                      border: 'none',
-                      boxShadow: `0 4px 14px ${task.color}55`,
-                      color: '#ffffff',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 15,
-                            fontWeight: 800,
-                            color: '#ffffff',
-                            textDecoration: task.completed ? 'line-through' : 'none',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {task.title}
-                        </div>
-
-                        {task.startTime && (
-                          <div
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: 'rgba(255, 255, 255, 0.9)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              marginTop: 2,
-                            }}
-                          >
-                            <Clock size={11} />
-                            <span>
-                              {task.startTime} ({formatDuration(task.durationMinutes)})
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Complete Checkbox */}
-                      <button
-                        type="button"
-                        className="task-check-btn"
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderColor: '#ffffff',
-                          backgroundColor: task.completed ? '#ffffff' : 'rgba(255, 255, 255, 0.2)',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleComplete(task.id);
-                        }}
-                      >
-                        {task.completed && <Check size={14} strokeWidth={3.5} color={task.color} />}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         );
