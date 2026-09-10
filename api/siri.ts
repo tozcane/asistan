@@ -1,5 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import { parseNaturalLanguageWithAI } from './ai-parse';
+import { parseNaturalLanguageWithAI } from './ai-parse.js';
 
 declare const process: any;
 
