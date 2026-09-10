@@ -33,7 +33,7 @@ export function sendMorningSummaryNotification(tasks: Task[]) {
   const count = scheduled.length;
 
   if (count === 0) {
-    sendBrowserNotification('Structured - Günaydın! ☀️', {
+    sendBrowserNotification('Asistan - Günaydın! ☀️', {
       body: 'Bugün için henüz bir görev planlanmadı. Gününüzü planlamak için dokunun.',
     });
     return;
@@ -42,7 +42,7 @@ export function sendMorningSummaryNotification(tasks: Task[]) {
   const firstTask = scheduled[0];
   const totalMinutes = scheduled.reduce((acc, t) => acc + (t.durationMinutes || 0), 0);
 
-  sendBrowserNotification('Structured - Günaydın! ☀️', {
+  sendBrowserNotification('Asistan - Günaydın! ☀️', {
     body: `Bugün seni ${count} görev bekliyor (${formatDuration(totalMinutes)}). İlk görev: ${firstTask.startTime} - ${firstTask.title}`,
   });
 }

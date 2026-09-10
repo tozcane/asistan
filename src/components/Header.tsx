@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="brand-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div className="brand-icon">⚡</div>
-            <span>Structured</span>
+            <span>Asistan</span>
           </div>
           <div
             style={{
