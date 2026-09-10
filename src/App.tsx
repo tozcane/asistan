@@ -24,12 +24,22 @@ import {
 const STORAGE_KEY = 'structured_app_tasks';
 const THEME_KEY = 'structured_app_theme';
 
+function getInitialTheme(): boolean {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    // iPad ve cihazın sistem tonuna göre otomatik başla
+    if (window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+  }
+  return true;
+}
+
 export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem(THEME_KEY);
-    return saved !== null ? saved === 'dark' : true;
-  });
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(getInitialTheme);
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -72,14 +82,35 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks]);
 
-  // Sync Theme to HTML document
+  // iPad ve cihazın sistem teması değişimini anlık dinle
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (!saved || saved === 'system') {
+        setIsDarkMode(e.matches);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  }, []);
+
+  // Sync Theme to HTML document & Safari Status Bar
   useEffect(() => {
     if (isDarkMode) {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem(THEME_KEY, 'dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.style.colorScheme = 'dark';
     } else {
       document.documentElement.setAttribute('data-theme', 'light');
-      localStorage.setItem(THEME_KEY, 'light');
+      document.documentElement.style.colorScheme = 'light';
+    }
+
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', isDarkMode ? '#000000' : '#f2f2f7');
     }
   }, [isDarkMode]);
 
@@ -372,7 +403,13 @@ export default function App() {
         selectedDate={selectedDate}
         onSelectDate={setSelectedDate}
         isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        onToggleTheme={() => {
+          setIsDarkMode((prev) => {
+            const next = !prev;
+            localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
+            return next;
+          });
+        }}
         dayStats={dayStats}
         onLoadDemoData={handleLoadDemoData}
         onClearAllTasks={handleClearAllTasks}
