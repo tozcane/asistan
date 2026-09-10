@@ -20,6 +20,7 @@ interface HeaderProps {
   onOpenSyncModal: () => void;
   onOpenSiriModal: () => void;
   isSyncing: boolean;
+  isOnline?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSyncModal,
   onOpenSiriModal,
   isSyncing,
+  isOnline = true,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -162,22 +164,36 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             className="icon-btn"
             onClick={onOpenSyncModal}
-            title={currentRoom ? `Eşitlenen Oda: ${currentRoom}` : 'Cihazları Eşitle (iPad ↔ Bilgisayar)'}
+            title={
+              !isOnline
+                ? 'İnternet bağlantısı yok (Çevrimdışı Mod) - Değişiklikler cihazınıza kaydedildi, internet gelince otomatik eşitlenecek'
+                : currentRoom
+                ? `Eşitlenen Oda: ${currentRoom}`
+                : 'Cihazları Eşitle (iPad ↔ Bilgisayar)'
+            }
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 6,
               padding: currentRoom ? '5px 10px' : '7px 10px',
               borderRadius: 14,
-              backgroundColor: currentRoom ? 'rgba(48, 209, 88, 0.14)' : 'rgba(10, 132, 255, 0.12)',
-              border: currentRoom ? '1px solid rgba(48, 209, 88, 0.35)' : '1px solid rgba(10, 132, 255, 0.25)',
-              color: currentRoom ? '#30D158' : '#0A84FF',
+              backgroundColor: !isOnline
+                ? 'rgba(255, 159, 10, 0.16)'
+                : currentRoom
+                ? 'rgba(48, 209, 88, 0.14)'
+                : 'rgba(10, 132, 255, 0.12)',
+              border: !isOnline
+                ? '1px solid rgba(255, 159, 10, 0.45)'
+                : currentRoom
+                ? '1px solid rgba(48, 209, 88, 0.35)'
+                : '1px solid rgba(10, 132, 255, 0.25)',
+              color: !isOnline ? '#FF9F0A' : currentRoom ? '#30D158' : '#0A84FF',
               fontWeight: 700,
               fontSize: 12,
             }}
           >
             <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-            <span>{currentRoom ? currentRoom : 'Eşitle'}</span>
+            <span>{!isOnline ? 'Çevrimdışı' : currentRoom ? currentRoom : 'Eşitle'}</span>
           </button>
         </div>
       </div>

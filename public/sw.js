@@ -1,4 +1,4 @@
-const CACHE_NAME = 'asistan-offline-v1';
+const CACHE_NAME = 'asistan-offline-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -37,32 +37,42 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests (HTML page loads): Network-First, fallback to cached /index.html
+  // Navigation requests (HTML page loads): Try network, fallback to cache
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
+        return caches.match('/index.html').then((matching) => {
+          return matching || caches.match('/');
+        });
       })
     );
     return;
   }
 
-  // Static assets: Stale-While-Revalidate
+  // Static assets (JS, CSS, fonts, images): Cache-First, update cache in background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
+      if (cachedResponse) {
+        // Fetch in background to update cache if online
+        fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
           }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
+        }).catch(() => {});
+        return cachedResponse;
+      }
 
-      return cachedResponse || fetchPromise;
+      return fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(event.request);
+      });
     })
   );
 });

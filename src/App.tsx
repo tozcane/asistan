@@ -76,6 +76,10 @@ export default function App() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const lastLocalEditTimeRef = useRef<number>(0);
   const isRemoteUpdateRef = useRef<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const hasOfflineChangesRef = useRef<boolean>(false);
 
   // Sync tasks to LocalStorage
   useEffect(() => {
@@ -113,6 +117,47 @@ export default function App() {
       metaThemeColor.setAttribute('content', isDarkMode ? '#000000' : '#f2f2f7');
     }
   }, [isDarkMode]);
+
+  // Cihazın internete bağlanmasını anlık dinle ve çevrimdışı eklenen tüm görevleri otomatik yükle!
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      const room = getStoredRoom();
+      const saved = localStorage.getItem(STORAGE_KEY);
+      const hasOfflineChanges =
+        localStorage.getItem('structured_has_offline_changes') === 'true' ||
+        hasOfflineChangesRef.current;
+
+      if (room && saved && hasOfflineChanges) {
+        setIsSyncing(true);
+        try {
+          const offlineTasks: Task[] = JSON.parse(saved);
+          const success = await pushRoomTasks(room, offlineTasks);
+          if (success) {
+            localStorage.removeItem('structured_has_offline_changes');
+            hasOfflineChangesRef.current = false;
+            setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+          }
+        } catch (err) {
+          console.error('Çevrimdışı yükleme hatası:', err);
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Filter tasks for the selected date (excluding unscheduled inbox tasks)
   const dayTasks = tasks.filter(
@@ -255,7 +300,12 @@ export default function App() {
       const updated = prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       if (syncRoom) {
-        pushRoomTasks(syncRoom, updated);
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
       }
       return updated;
     });
@@ -272,7 +322,12 @@ export default function App() {
       const updated = [...prev, ...newTasks];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       if (syncRoom) {
-        pushRoomTasks(syncRoom, updated);
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
       }
       return updated;
     });
@@ -296,7 +351,12 @@ export default function App() {
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       if (syncRoom) {
-        pushRoomTasks(syncRoom, updated);
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
       }
       return updated;
     });
@@ -308,7 +368,12 @@ export default function App() {
       const updated = prev.filter((t) => t.id !== taskId);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       if (syncRoom) {
-        pushRoomTasks(syncRoom, updated);
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
       }
       return updated;
     });
@@ -419,6 +484,7 @@ export default function App() {
         onOpenSyncModal={() => setIsSyncModalOpen(true)}
         onOpenSiriModal={() => setIsSiriModalOpen(true)}
         isSyncing={isSyncing}
+        isOnline={isOnline}
       />
 
       {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}
