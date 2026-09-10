@@ -1,13 +1,21 @@
-import { neon } from '@neondatabase/serverless';
+export interface ParsedSchedule {
+  title: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+}
 
-declare const process: any;
-
-function parseTurkishSchedule(rawText: string) {
+export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string): ParsedSchedule {
   let text = rawText.trim();
   const lower = text.toLowerCase();
   
   const now = new Date();
   let targetDate = new Date();
+  if (defaultDateStr) {
+    const [y, m, d] = defaultDateStr.split('-').map(Number);
+    targetDate = new Date(y, m - 1, d);
+  }
+
   let dateFound = false;
 
   // 1. DATE PARSING
@@ -26,7 +34,7 @@ function parseTurkishSchedule(rawText: string) {
     text = text.replace(/bugün|bugun/gi, '');
     dateFound = true;
   } else {
-    // Check specific month date: "18 eylül", "18 eylülde"
+    // Check month dates first: e.g. "18 eylül", "18 eylülde"
     const monthsMap: Record<string, number> = {
       'ocak': 0, 'şubat': 1, 'subat': 1, 'mart': 2, 'nisan': 3, 'mayıs': 4, 'mayis': 4,
       'haziran': 5, 'temmuz': 6, 'ağustos': 7, 'agustos': 7, 'eylül': 8, 'eylul': 8,
@@ -82,6 +90,7 @@ function parseTurkishSchedule(rawText: string) {
   if (/\bakşam\b/i.test(text)) { isEvening = true; text = text.replace(/\bakşam\b/gi, ''); }
   if (/\bgece\b/i.test(text)) { isEvening = true; text = text.replace(/\bgece\b/gi, ''); }
 
+  // Match: saat 15:30, 15:30'da, saat 3'te, saat 15
   const timeRegex = /(?:saat\s*)?(\d{1,2})(?:[:.](\d{2}))?(?:\s*['’]?(?:da|de|ta|te|ye|ya|e|a))?/i;
   const tMatch = text.match(timeRegex);
 
@@ -91,7 +100,7 @@ function parseTurkishSchedule(rawText: string) {
 
     if (isEvening && h < 12) h += 12;
     else if (isAfternoon && h < 12) h += 12;
-    else if (!isMorning && h >= 1 && h <= 6) h += 12; // 3 -> 15:00
+    else if (!isMorning && h >= 1 && h <= 6) h += 12; // e.g. saat 3 -> 15:00
 
     if (h >= 0 && h < 24) {
       time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -108,6 +117,7 @@ function parseTurkishSchedule(rawText: string) {
 
   if (!text) text = 'Yeni Görev';
 
+  // Capitalize first letter
   text = text.charAt(0).toUpperCase() + text.slice(1);
 
   const y = targetDate.getFullYear();
@@ -121,71 +131,4 @@ function parseTurkishSchedule(rawText: string) {
     time,
     durationMinutes: 60,
   };
-}
-
-export default async function handler(req: any, res: any) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return res.status(500).json({ error: 'Database URL not configured' });
-  }
-
-  const sql = neon(databaseUrl);
-
-  const room = (req.query?.room || req.body?.room || 'tahir').trim().toLowerCase();
-  const text = (req.query?.text || req.body?.text || '').trim();
-
-  if (!text) {
-    return res.status(400).json({ error: 'Metin parametresi gerekli. Örn: ?room=tahir&text=Yarın saat 14:00 Toplantı' });
-  }
-
-  const parsed = parseTurkishSchedule(text);
-
-  const newTask = {
-    id: 'siri_' + Date.now(),
-    title: parsed.title,
-    startTime: parsed.time,
-    durationMinutes: parsed.durationMinutes,
-    date: parsed.date,
-    color: '#0A84FF',
-    icon: 'sparkles',
-    completed: false,
-  };
-
-  try {
-    const rows = await sql`
-      SELECT tasks FROM asistan_rooms WHERE room_name = ${room} LIMIT 1
-    `;
-
-    let currentTasks: any[] = [];
-    if (rows.length > 0 && Array.isArray(rows[0].tasks)) {
-      currentTasks = rows[0].tasks;
-    }
-
-    currentTasks.push(newTask);
-
-    await sql`
-      INSERT INTO asistan_rooms (room_name, tasks, updated_at)
-      VALUES (${room}, ${JSON.stringify(currentTasks)}, NOW())
-      ON CONFLICT (room_name)
-      DO UPDATE SET tasks = EXCLUDED.tasks, updated_at = NOW()
-    `;
-
-    return res.status(200).json({
-      success: true,
-      message: `✓ "${parsed.title}" ${parsed.date} saat ${parsed.time} için Asistan'a eklendi!`,
-      task: newTask,
-    });
-  } catch (error: any) {
-    console.error('Siri API Error:', error);
-    return res.status(500).json({ error: error.message || 'Server error' });
-  }
 }

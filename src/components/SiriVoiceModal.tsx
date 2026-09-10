@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Mic, MicOff, Check } from 'lucide-react';
+import { X, Mic, MicOff, Check, Calendar, Clock } from 'lucide-react';
 import type { Task } from '../types';
+import { parseTurkishVoiceInput, type ParsedSchedule } from '../utils/siriParser';
 
 interface SiriVoiceModalProps {
   isOpen: boolean;
@@ -19,39 +20,63 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [preview, setPreview] = useState<ParsedSchedule | null>(null);
   const [activeTab, setActiveTab] = useState<'voice' | 'shortcut'>('voice');
-  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('Sizi dinliyorum...');
+  const [isSaved, setIsSaved] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const autoSaveTimerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!isOpen) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try { recognitionRef.current.stop(); } catch {}
       }
+      clearTimeout(autoSaveTimerRef.current);
       setIsListening(false);
       setTranscript('');
-      setFeedbackMsg(null);
+      setPreview(null);
+      setIsSaved(false);
       return;
     }
 
-    // Auto-start listening when modal opens in voice tab
     if (activeTab === 'voice') {
       startListening();
     }
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try { recognitionRef.current.stop(); } catch {}
       }
+      clearTimeout(autoSaveTimerRef.current);
     };
   }, [isOpen, activeTab]);
+
+  const autoCommit = (parsed: ParsedSchedule) => {
+    if (!parsed.title || isSaved) return;
+    setIsSaved(true);
+    setStatusMessage(`✓ Otomatik Eklendi: ${parsed.title} (${parsed.date} ${parsed.time})`);
+    
+    onAddTask({
+      title: parsed.title,
+      startTime: parsed.time,
+      durationMinutes: parsed.durationMinutes,
+      date: parsed.date,
+      color: '#0A84FF',
+      icon: 'sparkles',
+    });
+
+    setTimeout(() => {
+      onClose();
+    }, 1100);
+  };
 
   const startListening = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setFeedbackMsg('Tarayıcınız ses tanımayı desteklemiyor. Lütfen Safari veya Chrome kullanın.');
+      setStatusMessage('Tarayıcınız ses tanımayı desteklemiyor. Safari veya Chrome kullanın.');
       return;
     }
 
@@ -64,7 +89,9 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
       recognition.onstart = () => {
         setIsListening(true);
         setTranscript('');
-        setFeedbackMsg('Sizi dinliyorum... (Örn: "Saat 14:00\'te Diş Hekimi")');
+        setPreview(null);
+        setIsSaved(false);
+        setStatusMessage('Sizi dinliyorum... (Tarih, saat ve konuyu söyleyin)');
       };
 
       recognition.onresult = (event: any) => {
@@ -73,12 +100,23 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
           text += event.results[i][0].transcript;
         }
         setTranscript(text);
+
+        if (text.trim().length > 2) {
+          const parsed = parseTurkishVoiceInput(text, selectedDate);
+          setPreview(parsed);
+
+          // Auto-commit after 1.4s of pause
+          clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = setTimeout(() => {
+            autoCommit(parsed);
+          }, 1400);
+        }
       };
 
       recognition.onerror = (event: any) => {
         console.error('Speech error:', event);
         setIsListening(false);
-        setFeedbackMsg('Ses algılanamadı, lütfen mikrofona izin verip tekrar deneyin.');
+        setStatusMessage('Ses algılanamadı. Mikrofona tekrar dokunup deneyin.');
       };
 
       recognition.onend = () => {
@@ -95,45 +133,9 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
 
   const stopListening = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try { recognitionRef.current.stop(); } catch {}
     }
     setIsListening(false);
-  };
-
-  const handleApplyVoice = () => {
-    if (!transcript.trim()) return;
-
-    // Parse time
-    let title = transcript.trim();
-    let time = '10:00';
-    let duration = 60;
-
-    const timeMatch = title.match(/(?:saat\s*)?(\d{1,2})(?::(\d{2}))?(?:\s*(?:'|’)?(?:da|de|ta|te|da|de))?/i);
-    if (timeMatch) {
-      let hours = parseInt(timeMatch[1], 10);
-      const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-      if (hours < 7 && !title.toLowerCase().includes('sabah')) {
-        hours += 12;
-      }
-      time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-      title = title.replace(timeMatch[0], '').replace(/saat/gi, '').trim();
-    }
-
-    if (!title) title = 'Sesli Görev';
-
-    onAddTask({
-      title,
-      startTime: time,
-      durationMinutes: duration,
-      date: selectedDate,
-      color: '#0A84FF',
-      icon: 'sparkles',
-    });
-
-    setFeedbackMsg(`✓ "${title}" saat ${time} için eklendi!`);
-    setTimeout(() => {
-      onClose();
-    }, 900);
   };
 
   if (!isOpen) return null;
@@ -145,34 +147,33 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
     <div className="modal-backdrop" onClick={onClose}>
       <div 
         className="modal-sheet" 
-        style={{ maxWidth: 460 }} 
+        style={{ maxWidth: 440 }} 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <div className="modal-title" style={{ fontSize: 17, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>🎙️</span> Siri & Sesli Asistan
+          <div className="modal-title" style={{ fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 18 }}>🎙️</span> Siri & Sesli Asistan
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Kapat">
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        {/* Tab switch: Sesle Konuş / Siri Kestirmesi */}
-        <div style={{ display: 'flex', background: 'var(--surface-color, rgba(255,255,255,0.06))', padding: 3, borderRadius: 12, margin: '0 20px' }}>
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', background: 'var(--surface-color, rgba(255,255,255,0.06))', padding: 3, borderRadius: 12, margin: '0 18px' }}>
           <button
             type="button"
             onClick={() => setActiveTab('voice')}
             style={{
               flex: 1,
-              padding: '6px 12px',
+              padding: '6px 10px',
               borderRadius: 9,
               border: 'none',
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
               cursor: 'pointer',
               background: activeTab === 'voice' ? 'var(--bg-card, #1c1c1e)' : 'transparent',
               color: activeTab === 'voice' ? '#fff' : 'var(--text-secondary)',
-              boxShadow: activeTab === 'voice' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
             }}
           >
             Mikrofonla Söyle
@@ -182,112 +183,140 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
             onClick={() => setActiveTab('shortcut')}
             style={{
               flex: 1,
-              padding: '6px 12px',
+              padding: '6px 10px',
               borderRadius: 9,
               border: 'none',
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 700,
               cursor: 'pointer',
               background: activeTab === 'shortcut' ? 'var(--bg-card, #1c1c1e)' : 'transparent',
               color: activeTab === 'shortcut' ? '#fff' : 'var(--text-secondary)',
-              boxShadow: activeTab === 'shortcut' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
             }}
           >
-            Apple Siri Kestirmesi 🍎
+            "Hey Siri" Kestirmesi 🍎
           </button>
         </div>
 
-        <div className="modal-body" style={{ gap: 16 }}>
+        <div className="modal-body" style={{ gap: 14 }}>
           {activeTab === 'voice' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '10px 0' }}>
-              {/* Glowing Siri Orb */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              {/* Siri Orb */}
               <div
                 onClick={isListening ? stopListening : startListening}
                 style={{
-                  width: 88,
-                  height: 88,
+                  width: 76,
+                  height: 76,
                   borderRadius: '50%',
-                  background: isListening
+                  background: isSaved
+                    ? '#30D158'
+                    : isListening
                     ? 'radial-gradient(circle, #ff2d55 0%, #af52de 50%, #007aff 100%)'
                     : 'radial-gradient(circle, #0A84FF 0%, #0056b3 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: isListening
-                    ? '0 0 35px rgba(175, 82, 222, 0.65), 0 0 60px rgba(0, 122, 255, 0.4)'
-                    : '0 4px 20px rgba(10, 132, 255, 0.35)',
+                  boxShadow: isSaved
+                    ? '0 0 30px rgba(48, 209, 88, 0.6)'
+                    : isListening
+                    ? '0 0 35px rgba(175, 82, 222, 0.6), 0 0 50px rgba(0, 122, 255, 0.4)'
+                    : '0 4px 18px rgba(10, 132, 255, 0.35)',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  animation: isListening ? 'pulse 1.5s infinite' : 'none',
-                  marginBottom: 16,
+                  marginBottom: 12,
                 }}
               >
-                {isListening ? <Mic size={36} color="#ffffff" /> : <MicOff size={32} color="#ffffff" />}
+                {isSaved ? (
+                  <Check size={36} color="#ffffff" strokeWidth={3} />
+                ) : isListening ? (
+                  <Mic size={32} color="#ffffff" />
+                ) : (
+                  <MicOff size={28} color="#ffffff" />
+                )}
               </div>
 
-              <div style={{ fontSize: 14, fontWeight: 700, color: isListening ? '#af52de' : 'var(--text-primary)', marginBottom: 6 }}>
-                {isListening ? 'Sizi dinliyorum...' : 'Mikrofona dokunup söyleyin'}
+              <div style={{ fontSize: 13, fontWeight: 700, color: isSaved ? '#30D158' : isListening ? '#af52de' : 'var(--text-primary)', marginBottom: 4 }}>
+                {statusMessage}
               </div>
 
-              {feedbackMsg && (
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
-                  {feedbackMsg}
-                </div>
-              )}
-
-              {/* Transcript Box */}
+              {/* Transcript & Instant Parsed Preview */}
               <div
                 style={{
                   width: '100%',
-                  minHeight: 60,
+                  minHeight: 52,
                   backgroundColor: 'var(--surface-color, rgba(255,255,255,0.05))',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 12,
-                  padding: 12,
-                  fontSize: 14,
+                  padding: '10px 14px',
+                  fontSize: 13,
                   fontWeight: 600,
                   color: transcript ? 'var(--text-primary)' : 'var(--text-secondary)',
                   textAlign: 'left',
                   display: 'flex',
                   alignItems: 'center',
+                  marginBottom: 8,
                 }}
               >
-                {transcript || 'Örnek: "Saat 15:30\'da Tahir ile toplantı yap"'}
+                {transcript || 'Örnek: "Yarın saat 15:30\'da Diş Randevusu"'}
               </div>
 
-              {transcript && (
-                <button
-                  className="btn btn-primary"
-                  onClick={handleApplyVoice}
-                  style={{ marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              {/* Auto-detected Date & Time Card */}
+              {preview && (
+                <div
+                  style={{
+                    width: '100%',
+                    background: 'rgba(10, 132, 255, 0.1)',
+                    border: '1px solid rgba(10, 132, 255, 0.25)',
+                    borderRadius: 12,
+                    padding: '10px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    textAlign: 'left',
+                  }}
                 >
-                  <Check size={16} />
-                  Takvime Ekle
-                </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      ALGILANAN GÖREV
+                    </span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#30D158', background: 'rgba(48,209,88,0.15)', padding: '2px 6px', borderRadius: 6 }}>
+                      {isSaved ? 'Kaydedildi ✓' : 'Otomatik Kuruluyor...'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {preview.title}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Calendar size={13} color="#0A84FF" /> {preview.date}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={13} color="#FF9F0A" /> {preview.time}
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           ) : (
-            /* Apple Shortcuts (Kestirmeler) Guide */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13 }}>
+            /* Apple Siri Shortcuts Setup */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12, lineHeight: 1.5 }}>
               <div
                 style={{
                   background: 'rgba(10, 132, 255, 0.1)',
                   border: '1px solid rgba(10, 132, 255, 0.25)',
                   borderRadius: 12,
-                  padding: '12px 16px',
-                  lineHeight: 1.5,
+                  padding: '10px 14px',
                 }}
               >
-                <strong>"Hey Siri, Asistan'a ekle"</strong> diyerek iPad'inin ekranı kapalıyken bile sesle görev ekleyebilirsin!
+                Ekrana hiç basmadan, iPad'ine <strong>"Hey Siri, Asistan'a ekle"</strong> diyerek arka planda takvimine görev ekleyebilirsin!
               </div>
 
-              <div style={{ lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                <strong>Nasıl Yapılır? (1 Dakika)</strong>
-                <ol style={{ paddingLeft: 18, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <li>iPad'inde <strong>Kestirmeler (Shortcuts)</strong> uygulamasını aç.</li>
-                  <li>Yeni bir kestirme oluşturup adını <strong>"Asistan'a Ekle"</strong> yap.</li>
-                  <li>İşlem olarak <strong>"Metin İste"</strong> (veya Siri'ye söyle) seç.</li>
-                  <li>Ardından <strong>"URL İçeriğini Al"</strong> işlemine şu adresi bağla:</li>
+              <div>
+                <strong>iPad'de 1 Kez Yapılacak Kurulum:</strong>
+                <ol style={{ paddingLeft: 18, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <li>iPad'de <strong>Kestirmeler (Shortcuts)</strong> uygulamasını aç.</li>
+                  <li>Yeni kestirme oluştur ve adını <strong>"Asistan'a Ekle"</strong> yap.</li>
+                  <li>İşlem 1: <strong>"Girdi İste"</strong> (Metin sor: "Göreviniz nedir?")</li>
+                  <li>İşlem 2: <strong>"URL'nin İçeriğini Al"</strong> ekle ve şu adresi yaz:</li>
                 </ol>
               </div>
 
@@ -303,11 +332,11 @@ export const SiriVoiceModal: React.FC<SiriVoiceModalProps> = ({
                   color: '#30D158',
                 }}
               >
-                {shortcutUrl}[Girdi Metni]
+                {shortcutUrl}[Sağlanan Girdi]
               </div>
 
               <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                Artık iPad'ine <em>"Hey Siri, Asistan'a Ekle: Yarın 11'de Diş Randevusu"</em> dediğinde doğrudan takvimine işlenecektir!
+                Artık iPad'ine <em>"Hey Siri, Asistan'a ekle: Yarın saat 15:00'te Diş Hekimi"</em> dediğinde Siri otomatik olarak tarihi, saati ve konuyu takvime işler!
               </p>
             </div>
           )}
