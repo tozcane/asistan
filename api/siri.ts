@@ -2,27 +2,42 @@ import { neon } from '@neondatabase/serverless';
 
 declare const process: any;
 
+function getTurkeyDate(): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+
+  const y = parseInt(parts.find(p => p.type === 'year')!.value, 10);
+  const m = parseInt(parts.find(p => p.type === 'month')!.value, 10);
+  const d = parseInt(parts.find(p => p.type === 'day')!.value, 10);
+
+  return new Date(y, m - 1, d);
+}
+
 function parseTurkishSchedule(rawText: string) {
   let text = rawText.trim();
   const lower = text.toLowerCase();
   
-  const now = new Date();
-  let targetDate = new Date();
+  const now = getTurkeyDate();
+  let targetDate = getTurkeyDate();
   let dateFound = false;
 
   // 1. DATE PARSING
   if (lower.includes('öbür gün') || lower.includes('öbürsü gün')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     targetDate.setDate(targetDate.getDate() + 2);
     text = text.replace(/öbür\s*gün/gi, '').replace(/öbürsü\s*gün/gi, '');
     dateFound = true;
   } else if (lower.includes('yarın') || lower.includes('yarin')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     targetDate.setDate(targetDate.getDate() + 1);
     text = text.replace(/yarın|yarin/gi, '');
     dateFound = true;
   } else if (lower.includes('bugün') || lower.includes('bugun')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     text = text.replace(/bugün|bugun/gi, '');
     dateFound = true;
   } else {
@@ -38,7 +53,7 @@ function parseTurkishSchedule(rawText: string) {
       const mMatch = text.match(mRegex);
       if (mMatch) {
         const dayNum = parseInt(mMatch[1], 10);
-        targetDate = new Date();
+        targetDate = getTurkeyDate();
         targetDate.setMonth(mIdx);
         targetDate.setDate(dayNum);
         text = text.replace(mMatch[0], '');
@@ -61,7 +76,7 @@ function parseTurkishSchedule(rawText: string) {
           const currentDay = now.getDay();
           let diff = dayIdx - currentDay;
           if (diff <= 0) diff += 7; // Next occurrence
-          targetDate = new Date();
+          targetDate = getTurkeyDate();
           targetDate.setDate(now.getDate() + diff);
           text = text.replace(dMatch[0], '');
           dateFound = true;

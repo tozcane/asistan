@@ -5,12 +5,28 @@ export interface ParsedSchedule {
   durationMinutes: number;
 }
 
+function getTurkeyDate(): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Istanbul',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+
+  const y = parseInt(parts.find(p => p.type === 'year')!.value, 10);
+  const m = parseInt(parts.find(p => p.type === 'month')!.value, 10);
+  const d = parseInt(parts.find(p => p.type === 'day')!.value, 10);
+
+  return new Date(y, m - 1, d);
+}
+
 export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string): ParsedSchedule {
   let text = rawText.trim();
   const lower = text.toLowerCase();
   
-  const now = new Date();
-  let targetDate = new Date();
+  const now = getTurkeyDate();
+  let targetDate = getTurkeyDate();
+
   if (defaultDateStr) {
     const [y, m, d] = defaultDateStr.split('-').map(Number);
     targetDate = new Date(y, m - 1, d);
@@ -20,21 +36,21 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
 
   // 1. DATE PARSING
   if (lower.includes('öbür gün') || lower.includes('öbürsü gün')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     targetDate.setDate(targetDate.getDate() + 2);
     text = text.replace(/öbür\s*gün/gi, '').replace(/öbürsü\s*gün/gi, '');
     dateFound = true;
   } else if (lower.includes('yarın') || lower.includes('yarin')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     targetDate.setDate(targetDate.getDate() + 1);
     text = text.replace(/yarın|yarin/gi, '');
     dateFound = true;
   } else if (lower.includes('bugün') || lower.includes('bugun')) {
-    targetDate = new Date();
+    targetDate = getTurkeyDate();
     text = text.replace(/bugün|bugun/gi, '');
     dateFound = true;
   } else {
-    // Check month dates first: e.g. "18 eylül", "18 eylülde"
+    // Check specific month date: "18 eylül", "18 eylülde"
     const monthsMap: Record<string, number> = {
       'ocak': 0, 'şubat': 1, 'subat': 1, 'mart': 2, 'nisan': 3, 'mayıs': 4, 'mayis': 4,
       'haziran': 5, 'temmuz': 6, 'ağustos': 7, 'agustos': 7, 'eylül': 8, 'eylul': 8,
@@ -46,7 +62,7 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
       const mMatch = text.match(mRegex);
       if (mMatch) {
         const dayNum = parseInt(mMatch[1], 10);
-        targetDate = new Date();
+        targetDate = getTurkeyDate();
         targetDate.setMonth(mIdx);
         targetDate.setDate(dayNum);
         text = text.replace(mMatch[0], '');
@@ -69,7 +85,7 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
           const currentDay = now.getDay();
           let diff = dayIdx - currentDay;
           if (diff <= 0) diff += 7; // Next occurrence
-          targetDate = new Date();
+          targetDate = getTurkeyDate();
           targetDate.setDate(now.getDate() + diff);
           text = text.replace(dMatch[0], '');
           dateFound = true;
@@ -90,7 +106,6 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
   if (/\bakşam\b/i.test(text)) { isEvening = true; text = text.replace(/\bakşam\b/gi, ''); }
   if (/\bgece\b/i.test(text)) { isEvening = true; text = text.replace(/\bgece\b/gi, ''); }
 
-  // Match: saat 15:30, 15:30'da, saat 3'te, saat 15
   const timeRegex = /(?:saat\s*)?(\d{1,2})(?:[:.](\d{2}))?(?:\s*['’]?(?:da|de|ta|te|ye|ya|e|a))?/i;
   const tMatch = text.match(timeRegex);
 
@@ -100,7 +115,7 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
 
     if (isEvening && h < 12) h += 12;
     else if (isAfternoon && h < 12) h += 12;
-    else if (!isMorning && h >= 1 && h <= 6) h += 12; // e.g. saat 3 -> 15:00
+    else if (!isMorning && h >= 1 && h <= 6) h += 12; // 3 -> 15:00
 
     if (h >= 0 && h < 24) {
       time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -117,7 +132,6 @@ export function parseTurkishVoiceInput(rawText: string, defaultDateStr?: string)
 
   if (!text) text = 'Yeni Görev';
 
-  // Capitalize first letter
   text = text.charAt(0).toUpperCase() + text.slice(1);
 
   const y = targetDate.getFullYear();
