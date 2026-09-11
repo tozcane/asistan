@@ -5,8 +5,6 @@ interface DailyNotesProps {
   selectedDate: string;
 }
 
-type NoteMode = 'pen' | 'text';
-
 const PEN_COLORS = [
   { id: 'default', label: 'Varsayılan', light: '#000000', dark: '#FFFFFF' },
   { id: 'blue', label: 'Mavi', hex: '#0A84FF' },
@@ -16,7 +14,6 @@ const PEN_COLORS = [
 ];
 
 export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
-  const [mode, setMode] = useState<NoteMode>('pen');
   const [textContent, setTextContent] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('default');
   const [isEraser, setIsEraser] = useState<boolean>(false);
@@ -51,18 +48,17 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   // Setup / resize and restore canvas for selectedDate
-  const restoreCanvas = () => {
+  const restoreCanvas = (force = false) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const rect = container.getBoundingClientRect();
     const width = Math.floor(rect.width) || 320;
-    const height = Math.floor(rect.height) || 380;
+    const height = Math.floor(rect.height) || 360;
 
     const dpr = window.devicePixelRatio || 1;
-    // Don't re-initialize canvas if already matching dimension
-    if (canvas.width === width * dpr && canvas.height === height * dpr) {
+    if (!force && canvas.width === width * dpr && canvas.height === height * dpr) {
       return;
     }
 
@@ -77,7 +73,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Clear history on date change
     historyRef.current = [];
 
     // Load saved drawing image
@@ -92,19 +87,14 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   useEffect(() => {
-    if (mode === 'pen') {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      restoreCanvas();
-    }
-  }, [selectedDate, mode]);
+    restoreCanvas(true);
+  }, [selectedDate]);
 
-  // Window resize handler with auto-save and debouncing (never wipe while drawing)
+  // Prevent drawing cancel on minor resize
   useEffect(() => {
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const handleResize = () => {
-      if (mode !== 'pen' || isDrawingRef.current) return;
+      if (isDrawingRef.current) return;
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         const container = containerRef.current;
@@ -114,10 +104,9 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
         const width = Math.floor(rect.width);
         const height = Math.floor(rect.height);
         const dpr = window.devicePixelRatio || 1;
-        // Only restore if width or height changed significantly (e.g. orientation flip)
-        if (Math.abs(canvas.width - width * dpr) > 20 || Math.abs(canvas.height - height * dpr) > 20) {
+        if (Math.abs(canvas.width - width * dpr) > 25 || Math.abs(canvas.height - height * dpr) > 25) {
           saveCanvasState();
-          restoreCanvas();
+          restoreCanvas(true);
         }
       }, 150);
     };
@@ -126,110 +115,18 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       window.removeEventListener('resize', handleResize);
       if (resizeTimer) clearTimeout(resizeTimer);
     };
-  }, [selectedDate, mode]);
+  }, [selectedDate]);
 
-  // Otomatik Kalem Algılama (Apple Pencil Hover, Proximity & Docking Detection)
-  const [isPenNearby, setIsPenNearby] = useState<boolean>(false);
-  const isPenNearbyRef = useRef<boolean>(false);
-  const penIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  // Prevent page scrolling strictly while pencil is drawing on the canvas
   useEffect(() => {
-    if (mode !== 'pen') {
-      isPenNearbyRef.current = false;
-      setIsPenNearby(false);
-      document.body.classList.remove('pen-mode-active');
-      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
-      return;
-    }
-
-    const activatePenMode = () => {
-      if (!isPenNearbyRef.current) {
-        isPenNearbyRef.current = true;
-        setIsPenNearby(true);
-        document.body.classList.add('pen-mode-active');
-      }
-
-      // Kalem ekrandan uzaklaştığında veya yerine takıldığında 1.8 sn sonra otomatik parmak moduna dön
-      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
-      penIdleTimerRef.current = setTimeout(() => {
-        if (isDrawingRef.current) return;
-        isPenNearbyRef.current = false;
-        setIsPenNearby(false);
-        document.body.classList.remove('pen-mode-active');
-      }, 1800);
-    };
-
-    // Kalem ucu ekrana yaklaştığında (Apple Pencil Hover) veya dokunduğunda anında yakala
-    const handleGlobalPointer = (e: PointerEvent) => {
-      if (e.pointerType === 'pen') {
-        activatePenMode();
-        return;
-      }
-
-      // Kalem yakındayken parmak/avuç dokunuşlarını bloke et
-      if (e.pointerType === 'touch' && isPenNearbyRef.current) {
-        const target = e.target as HTMLElement | null;
-        if (target?.closest('.allow-finger-touch')) {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }
-    };
-
-    // Touch events: Kalem yakındayken istemsiz sayfa kaydırma ve buton tıklamalarını engelle
-    const handleGlobalTouch = (e: TouchEvent) => {
-      // Kalem uzaktaysa / takılıysa parmak dokunuşunu serbest bırak
-      if (!isPenNearbyRef.current) {
-        return;
-      }
-
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('.allow-finger-touch')) {
-        return;
-      }
-
-      // Kalem çizim yaparken el temasını tamamen engelle
+    const handleTouchMove = (e: TouchEvent) => {
       if (isDrawingRef.current) {
         e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        return;
-      }
-
-      // Tek parmak / avuç temasını engelle (2 parmakla sayfa kaydırmaya izin ver)
-      if (e.touches.length === 1) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
       }
     };
-
-    window.addEventListener('pointermove', handleGlobalPointer, { capture: true, passive: false });
-    window.addEventListener('pointerdown', handleGlobalPointer, { capture: true, passive: false });
-    window.addEventListener('pointerover', handleGlobalPointer, { capture: true, passive: false });
-    window.addEventListener('pointerenter', handleGlobalPointer, { capture: true, passive: false });
-
-    window.addEventListener('touchstart', handleGlobalTouch, { capture: true, passive: false });
-    window.addEventListener('touchmove', handleGlobalTouch, { capture: true, passive: false });
-    window.addEventListener('touchend', handleGlobalTouch, { capture: true, passive: false });
-    window.addEventListener('touchcancel', handleGlobalTouch, { capture: true, passive: false });
-
-    return () => {
-      document.body.classList.remove('pen-mode-active');
-      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
-      window.removeEventListener('pointermove', handleGlobalPointer, { capture: true });
-      window.removeEventListener('pointerdown', handleGlobalPointer, { capture: true });
-      window.removeEventListener('pointerover', handleGlobalPointer, { capture: true });
-      window.removeEventListener('pointerenter', handleGlobalPointer, { capture: true });
-
-      window.removeEventListener('touchstart', handleGlobalTouch, { capture: true });
-      window.removeEventListener('touchmove', handleGlobalTouch, { capture: true });
-      window.removeEventListener('touchend', handleGlobalTouch, { capture: true });
-      window.removeEventListener('touchcancel', handleGlobalTouch, { capture: true });
-    };
-  }, [mode]);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => window.removeEventListener('touchmove', handleTouchMove);
+  }, []);
 
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -242,9 +139,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   const getStrokeColor = (): string => {
-    if (isEraser) {
-      return isDarkMode ? '#1c1c1e' : '#ffffff';
-    }
     const colorObj = PEN_COLORS.find((c) => c.id === selectedColor);
     if (!colorObj) return isDarkMode ? '#FFFFFF' : '#000000';
     if (colorObj.hex) return colorObj.hex;
@@ -252,28 +146,15 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    // 1. AVUÇ İÇİ KORUMASI: Kalem ekrandayken veya yakındayken parmak/avuç dokunuşlarını reddet
-    if (isPenNearbyRef.current && e.pointerType === 'touch') {
+    // Palm Rejection: Tuvalde sadece kalem ucu (ve masaüstü fare) çizim yapar, el ayası çizmez
+    if (e.pointerType === 'touch') {
       e.preventDefault();
-      e.stopPropagation();
       return;
     }
 
-    if (e.pointerType === 'pen') {
-      isPenNearbyRef.current = true;
-      setIsPenNearby(true);
-      document.body.classList.add('pen-mode-active');
-    }
-
-    // 2. Halihazırda çizim yapan bir pointer varken ikinci dokunuşu (avuç dayama) reddet
     if (activePointerIdRef.current !== null) {
       e.preventDefault();
       return;
-    }
-
-    // 3. Klavyenin açılmasını kesin olarak engelle
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
     }
 
     const canvas = canvasRef.current;
@@ -301,8 +182,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     isDrawingRef.current = true;
     const coords = getCanvasCoords(e.clientX, e.clientY);
 
-    // Apple Pencil basınç duyarlılığı (yazı yazmaya uygun 1.2px - 5.5px aralığı)
-    let width = isEraser ? 22 : 2.5;
+    let width = isEraser ? 24 : 2.5;
     if (!isEraser && e.pointerType === 'pen' && typeof e.pressure === 'number' && e.pressure > 0) {
       width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + e.pressure * 0.9)));
     }
@@ -310,13 +190,20 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     strokePointsRef.current = [{ x: coords.x, y: coords.y, width }];
 
     ctx.save();
-    ctx.strokeStyle = getStrokeColor();
-    ctx.fillStyle = getStrokeColor();
+    // Gerçek silgi: destination-out ile doğrudan pikselleri şeffaflaştırarak siler, asla boyamaz
+    if (isEraser) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = getStrokeColor();
+      ctx.fillStyle = getStrokeColor();
+    }
     ctx.lineWidth = width;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Nokta atışı (tek dokunma)
     ctx.beginPath();
     ctx.arc(coords.x, coords.y, width / 2, 0, Math.PI * 2);
     ctx.fill();
@@ -330,13 +217,18 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    // Apple Pencil 120Hz/240Hz coalesced events
     const nativeEv = e.nativeEvent as unknown as { getCoalescedEvents?: () => globalThis.PointerEvent[] };
     const coalesced = nativeEv?.getCoalescedEvents ? nativeEv.getCoalescedEvents() : [];
     const rawEvents = coalesced && coalesced.length > 0 ? coalesced : [e];
 
     ctx.save();
-    ctx.strokeStyle = getStrokeColor();
+    if (isEraser) {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = getStrokeColor();
+    }
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -344,7 +236,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       const ev = rawEvents[i];
       const coords = getCanvasCoords(ev.clientX, ev.clientY);
 
-      let width = isEraser ? 22 : 2.5;
+      let width = isEraser ? 24 : 2.5;
       if (!isEraser && ev.pointerType === 'pen' && typeof ev.pressure === 'number' && ev.pressure > 0) {
         width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + ev.pressure * 0.9)));
       }
@@ -418,181 +310,122 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
   return (
     <div className="daily-notes-container">
-      {/* Automatic Apple Pencil Proximity & Palm Rejection Banner */}
-      {mode === 'pen' && (
-        <div className={`pen-active-global-banner ${isPenNearby ? 'active' : 'idle'}`}>
-          <div className="banner-left">
-            <span className={`banner-pulse ${isPenNearby ? 'pulse-active' : 'pulse-idle'}`} />
-            <span>
-              {isPenNearby ? (
-                <>
-                  ⚡ <strong>Apple Pencil Ekrana Yaklaştı:</strong> Sayfada parmak/avuç dokunuşları otomatik kapatıldı. Sadece kalem ucu çalışır.
-                </>
-              ) : (
-                <>
-                  🖐️ <strong>Dokunmatik Açık (Kalem Takılı / Uzakta):</strong> Sayfayı parmakla serbestçe kullanabilirsiniz. Kalem ekrana yaklaştığında otomatik kilitlenir.
-                </>
-              )}
-            </span>
-          </div>
-          {isPenNearby && (
-            <button
-              type="button"
-              className="banner-switch-btn allow-finger-touch"
-              onClick={() => {
-                isPenNearbyRef.current = false;
-                setIsPenNearby(false);
-                document.body.classList.remove('pen-mode-active');
-                if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
-              }}
-              title="Parmak dokunuşunu hemen aç"
-            >
-              🖐️ Dokunmatiği Aç
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Header with Title & Mode Switcher */}
+      {/* Header with Title & Tools */}
       <div className="daily-notes-header">
         <div className="daily-notes-title-group">
           <div className="daily-notes-title">
-            <PenTool size={16} color="#FF9F0A" />
+            <PenTool size={17} color="#FF9F0A" />
             <span>Günün Notları</span>
           </div>
-          <span className="daily-notes-subtitle desktop-only">Kalemle çiz veya klavyeyle yaz</span>
+          <span className="daily-notes-subtitle desktop-only">Metin notları ve Apple Pencil el yazısı alanı</span>
         </div>
 
+        {/* Toolbar Controls */}
         <div className="daily-notes-controls">
-          {/* Mode Switcher Tabs */}
-          <div className="daily-notes-mode-tabs">
+          <div className="daily-notes-pen-tools">
+            {/* Color dots */}
+            <div className="pen-colors-row">
+              {PEN_COLORS.map((c) => {
+                const colorCode = c.hex || (isDarkMode ? c.dark : c.light);
+                const isSelected = selectedColor === c.id && !isEraser;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`pen-color-dot ${isSelected ? 'selected' : ''}`}
+                    style={{ backgroundColor: colorCode }}
+                    onClick={() => {
+                      setSelectedColor(c.id);
+                      setIsEraser(false);
+                    }}
+                    title={c.label}
+                  />
+                );
+              })}
+            </div>
+
+            {/* True Eraser */}
             <button
               type="button"
-              className={`notes-tab-btn allow-finger-touch ${mode === 'pen' ? 'active' : ''}`}
-              onClick={() => {
-                setMode('pen');
-                setIsEraser(false);
-                if (document.activeElement instanceof HTMLElement) {
-                  document.activeElement.blur();
-                }
-              }}
-              title="Kalemle Çizim & El Yazısı Modu"
+              className={`icon-btn-compact ${isEraser ? 'active' : ''}`}
+              onClick={() => setIsEraser(!isEraser)}
+              title="Silgi (Çizilen mürekkebi siler)"
             >
-              <PenTool size={13} />
-              <span>Kalem</span>
+              <Eraser size={14} />
+              <span className="desktop-only" style={{ fontSize: 11, fontWeight: 700 }}>Silgi</span>
             </button>
+
+            {/* Undo */}
             <button
               type="button"
-              className={`notes-tab-btn allow-finger-touch ${mode === 'text' ? 'active' : ''}`}
-              onClick={() => setMode('text')}
-              title="Metin / Klavye Notu Modu"
+              className="icon-btn-compact"
+              onClick={handleUndo}
+              title="Geri Al"
             >
-              <FileText size={13} />
-              <span>Metin</span>
+              <RotateCcw size={14} />
+            </button>
+
+            {/* Clear */}
+            <button
+              type="button"
+              className="icon-btn-compact text-danger"
+              onClick={handleClearCanvas}
+              title="Çizimi Temizle"
+            >
+              <Trash2 size={14} />
             </button>
           </div>
-
-          {/* Pen Toolbar Controls */}
-          {mode === 'pen' && (
-            <div className="daily-notes-pen-tools">
-              {/* Smart Pen Proximity Indicator */}
-              <div
-                className={`notes-palm-btn ${isPenNearby ? 'active' : ''}`}
-                title={isPenNearby ? 'Apple Pencil Algılandı: Avuç koruması devrede' : 'Kalem takılı/uzakta: Dokunmatik aktif'}
-              >
-                <ShieldCheck size={13} />
-                <span className="desktop-only">{isPenNearby ? '⚡ Kalem Yakında' : '🖐️ Kalem Takılı'}</span>
-                <span className="mobile-only">{isPenNearby ? '⚡ Kalem' : '🖐️ Takılı'}</span>
-              </div>
-
-              {/* Color dots */}
-              <div className="pen-colors-row">
-                {PEN_COLORS.map((c) => {
-                  const colorCode = c.hex || (isDarkMode ? c.dark : c.light);
-                  const isSelected = selectedColor === c.id && !isEraser;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`pen-color-dot ${isSelected ? 'selected' : ''}`}
-                      style={{ backgroundColor: colorCode }}
-                      onClick={() => {
-                        setSelectedColor(c.id);
-                        setIsEraser(false);
-                      }}
-                      title={c.label}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Eraser */}
-              <button
-                type="button"
-                className={`icon-btn-compact ${isEraser ? 'active' : ''}`}
-                onClick={() => setIsEraser(!isEraser)}
-                title="Silgi"
-              >
-                <Eraser size={14} />
-              </button>
-
-              {/* Undo */}
-              <button
-                type="button"
-                className="icon-btn-compact"
-                onClick={handleUndo}
-                title="Geri Al"
-              >
-                <RotateCcw size={14} />
-              </button>
-
-              {/* Clear */}
-              <button
-                type="button"
-                className="icon-btn-compact text-danger"
-                onClick={handleClearCanvas}
-                title="Çizimi Temizle"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Content Area: Canvas or Textarea */}
-      <div className="daily-notes-content-box" ref={containerRef}>
-        {mode === 'pen' ? (
-          <div className="canvas-wrapper">
-            <canvas
-              ref={canvasRef}
-              className="daily-notes-canvas"
-              tabIndex={-1}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-            />
-            {!localStorage.getItem(`asistan_canvas_${selectedDate}`) && (
-              <div className="canvas-watermark">
-                <PenTool size={22} strokeWidth={1.5} />
-                <span>
-                  {isPenNearby
-                    ? 'Apple Pencil devrede (Sayfa geneli avuç koruması aktif)'
-                    : 'Apple Pencil yaklaştığında otomatik olarak yazıya başlar'}
-                </span>
-              </div>
-            )}
+      {/* Unified Sections on the Same Page: Text + Pencil Drawing together */}
+      <div className="daily-notes-unified-body">
+        {/* 1. Text Notes Section */}
+        <div className="daily-notes-text-card">
+          <div className="notes-section-header">
+            <FileText size={14} color="#0A84FF" />
+            <span>Klavyeyle Metin Notu</span>
           </div>
-        ) : (
           <textarea
             className="daily-notes-textarea"
             value={textContent}
             onChange={handleTextChange}
-            placeholder="Günün notları, hedefleri ve fikirleri..."
-            rows={7}
+            placeholder="Günün önemli notları, maddeleri ve fikirleri..."
+            rows={3}
           />
-        )}
+        </div>
+
+        {/* 2. Apple Pencil Drawing & Handwriting Canvas Section */}
+        <div className="daily-notes-canvas-card">
+          <div className="notes-section-header">
+            <PenTool size={14} color="#FF9F0A" />
+            <span>Apple Pencil ile Çizim & El Yazısı</span>
+            <span className="notes-palm-indicator">
+              <ShieldCheck size={13} color="#30D158" />
+              <span>Avuç İçi Korumalı</span>
+            </span>
+          </div>
+
+          <div className="daily-notes-content-box" ref={containerRef}>
+            <div className="canvas-wrapper">
+              <canvas
+                ref={canvasRef}
+                className="daily-notes-canvas"
+                tabIndex={-1}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+              />
+              {!localStorage.getItem(`asistan_canvas_${selectedDate}`) && (
+                <div className="canvas-watermark">
+                  <PenTool size={22} strokeWidth={1.5} />
+                  <span>Apple Pencil veya parmakla serbestçe buraya not alın & çizin</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
