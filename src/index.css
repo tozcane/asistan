@@ -1989,21 +1989,21 @@ body.pen-mode-active {
   margin-bottom: 8px;
 }
 
-.pen-styles-bar {
+.pen-tools-mode-bar {
   display: flex;
   align-items: center;
   gap: 4px;
   background: var(--surface-color, rgba(255, 255, 255, 0.06));
   padding: 3px;
-  border-radius: 10px;
+  border-radius: 9px;
   border: 1px solid var(--border-subtle);
 }
 
-.pen-style-tab {
+.pen-mode-btn {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 4px 10px;
   font-size: 11.5px;
   font-weight: 700;
   border: none;
@@ -2014,24 +2014,20 @@ body.pen-mode-active {
   transition: all 0.15s ease;
 }
 
-.pen-style-tab:hover {
+.pen-mode-btn:hover {
   color: var(--text-primary);
 }
 
-.pen-style-tab.active {
-  background: var(--bg-card, #2c2c2e);
-  color: var(--text-primary);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+.pen-mode-btn.active {
+  background: #0a84ff;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.3);
 }
 
-[data-theme='light'] .pen-style-tab.active {
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-.pen-style-tab.eraser-tab.active {
+.pen-mode-btn.eraser-btn.active {
   background: #ff9f0a;
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(255, 159, 10, 0.3);
 }
 
 .daily-notes-pen-subbar {

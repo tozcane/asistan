@@ -5,24 +5,16 @@ interface DailyNotesProps {
   selectedDate: string;
 }
 
-export type PenStyle = 'pilot' | 'fountain' | 'marker' | 'highlighter';
 export type PenSize = 'thin' | 'medium' | 'thick' | 'xlarge';
 
-const PEN_STYLES: { id: PenStyle; label: string; icon: string; title: string }[] = [
-  { id: 'pilot', label: 'Pilot', icon: '🖊️', title: 'Pilot Kalem (İnce ve net)' },
-  { id: 'fountain', label: 'Dolma Kalem', icon: '✒️', title: 'Dolma Kalem (Baskıya duyarlı hat)' },
-  { id: 'marker', label: 'İspirtolu', icon: '🖍️', title: 'İspirtolu Kalem (Doygun ve kalın)' },
-  { id: 'highlighter', label: 'Fosforlu', icon: '✨', title: 'Fosforlu Kalem (Şeffaf vurgulayıcı)' },
+const PEN_SIZES: { id: PenSize; label: string; dotSize: number; width: number }[] = [
+  { id: 'thin', label: 'İnce', dotSize: 4, width: 1.8 },
+  { id: 'medium', label: 'Normal', dotSize: 7, width: 3.2 },
+  { id: 'thick', label: 'Kalın', dotSize: 10, width: 5.5 },
+  { id: 'xlarge', label: 'Ekstra', dotSize: 14, width: 9.0 },
 ];
 
-const PEN_SIZES: { id: PenSize; label: string; dotSize: number }[] = [
-  { id: 'thin', label: 'İnce', dotSize: 4 },
-  { id: 'medium', label: 'Normal', dotSize: 7 },
-  { id: 'thick', label: 'Kalın', dotSize: 10 },
-  { id: 'xlarge', label: 'Ekstra', dotSize: 14 },
-];
-
-const STANDARD_COLORS = [
+const COLORS = [
   { id: 'default', label: 'Siyah/Beyaz', light: '#000000', dark: '#FFFFFF' },
   { id: 'blue', label: 'Mavi', hex: '#0A84FF' },
   { id: 'red', label: 'Kırmızı', hex: '#FF453A' },
@@ -31,17 +23,8 @@ const STANDARD_COLORS = [
   { id: 'orange', label: 'Turuncu', hex: '#FF9F0A' },
 ];
 
-const HIGHLIGHTER_COLORS = [
-  { id: 'hl-green', label: 'Fosforlu Yeşil', hex: '#39FF14' },
-  { id: 'hl-yellow', label: 'Fosforlu Sarı', hex: '#FFE600' },
-  { id: 'hl-pink', label: 'Fosforlu Pembe', hex: '#FF2D55' },
-  { id: 'hl-blue', label: 'Fosforlu Mavi', hex: '#00E5FF' },
-  { id: 'hl-orange', label: 'Fosforlu Turuncu', hex: '#FF9500' },
-];
-
 export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   const [textContent, setTextContent] = useState<string>('');
-  const [penStyle, setPenStyle] = useState<PenStyle>('pilot');
   const [penSize, setPenSize] = useState<PenSize>('medium');
   const [selectedColor, setSelectedColor] = useState<string>('default');
   const [isEraser, setIsEraser] = useState<boolean>(false);
@@ -73,21 +56,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     if (!canvas) return;
     const dataUrl = canvas.toDataURL();
     localStorage.setItem(`asistan_canvas_${selectedDate}`, dataUrl);
-  };
-
-  // Switch pen style helper
-  const handleSelectPenStyle = (style: PenStyle) => {
-    setPenStyle(style);
-    setIsEraser(false);
-    if (style === 'highlighter') {
-      if (!selectedColor.startsWith('hl-')) {
-        setSelectedColor('hl-green'); // Default to Fosforlu Yeşil
-      }
-    } else {
-      if (selectedColor.startsWith('hl-')) {
-        setSelectedColor('default');
-      }
-    }
   };
 
   // Setup / resize and restore canvas for selectedDate
@@ -182,43 +150,19 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   const getStrokeColor = (): string => {
-    const colors = penStyle === 'highlighter' ? HIGHLIGHTER_COLORS : STANDARD_COLORS;
-    const colorObj = colors.find((c) => c.id === selectedColor);
+    const colorObj = COLORS.find((c) => c.id === selectedColor);
     if (!colorObj) {
-      if (penStyle === 'highlighter') return '#39FF14';
       return isDarkMode ? '#FFFFFF' : '#000000';
     }
     if ('hex' in colorObj && colorObj.hex) return colorObj.hex;
     return (isDarkMode ? (colorObj as any).dark : (colorObj as any).light) || '#000000';
   };
 
-  const getBaseWidth = (): number => {
-    const sizeMap: Record<PenStyle, Record<PenSize, number>> = {
-      pilot: { thin: 1.5, medium: 2.5, thick: 4.0, xlarge: 6.0 },
-      fountain: { thin: 2.0, medium: 3.5, thick: 5.5, xlarge: 8.0 },
-      marker: { thin: 4.0, medium: 6.5, thick: 9.5, xlarge: 14.0 },
-      highlighter: { thin: 16.0, medium: 24.0, thick: 32.0, xlarge: 42.0 },
-    };
-    return sizeMap[penStyle][penSize];
-  };
-
   const getComputedWidth = (pressure?: number): number => {
     if (isEraser) return 26;
-    const base = getBaseWidth();
+    const base = PEN_SIZES.find((s) => s.id === penSize)?.width || 3.2;
     if (typeof pressure === 'number' && pressure > 0) {
-      if (penStyle === 'fountain') {
-        // Dolma Kalem: Dramatic calligraphic tapering
-        return Math.max(1.0, base * (0.35 + pressure * 1.6));
-      } else if (penStyle === 'pilot') {
-        // Pilot Kalem: Smooth, crisp line
-        return Math.max(0.9, base * (0.8 + pressure * 0.35));
-      } else if (penStyle === 'marker') {
-        // İspirtolu Kalem: Bold, rich marker
-        return Math.max(2.5, base * (0.7 + pressure * 0.6));
-      } else if (penStyle === 'highlighter') {
-        // Fosforlu Kalem: Wide highlighter sweep
-        return Math.max(10, base * (0.85 + pressure * 0.25));
-      }
+      return Math.max(1.0, base * (0.75 + pressure * 0.5));
     }
     return base;
   };
@@ -271,13 +215,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       ctx.globalAlpha = 1.0;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-    } else if (penStyle === 'highlighter') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = getStrokeColor();
-      ctx.fillStyle = getStrokeColor();
-      ctx.globalAlpha = 0.38; // Şeffaf fosforlu vurgulayıcı
-      ctx.lineCap = 'square';
-      ctx.lineJoin = 'miter';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = getStrokeColor();
@@ -312,12 +249,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       ctx.globalAlpha = 1.0;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-    } else if (penStyle === 'highlighter') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = getStrokeColor();
-      ctx.globalAlpha = 0.38;
-      ctx.lineCap = 'square';
-      ctx.lineJoin = 'miter';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = getStrokeColor();
@@ -398,8 +329,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     historyRef.current = [];
   };
 
-  const activeColors = penStyle === 'highlighter' ? HIGHLIGHTER_COLORS : STANDARD_COLORS;
-
   return (
     <div className="daily-notes-container">
       {/* Header with Title & Action Buttons */}
@@ -465,26 +394,21 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               </span>
             </div>
 
-            {/* Pen Style Selector Tabs (Pilot, Dolma, İspirtolu, Fosforlu) */}
-            <div className="pen-styles-bar">
-              {PEN_STYLES.map((style) => (
-                <button
-                  key={style.id}
-                  type="button"
-                  className={`pen-style-tab ${penStyle === style.id && !isEraser ? 'active' : ''}`}
-                  onClick={() => handleSelectPenStyle(style.id)}
-                  title={style.title}
-                >
-                  <span className="pen-icon">{style.icon}</span>
-                  <span className="pen-label">{style.label}</span>
-                </button>
-              ))}
-
-              {/* True Eraser Tab */}
+            {/* Kalem ve Silgi Seçimi */}
+            <div className="pen-tools-mode-bar">
               <button
                 type="button"
-                className={`pen-style-tab eraser-tab ${isEraser ? 'active' : ''}`}
-                onClick={() => setIsEraser(!isEraser)}
+                className={`pen-mode-btn ${!isEraser ? 'active' : ''}`}
+                onClick={() => setIsEraser(false)}
+                title="Kalem"
+              >
+                <PenTool size={13} />
+                <span className="pen-label">Kalem</span>
+              </button>
+              <button
+                type="button"
+                className={`pen-mode-btn eraser-btn ${isEraser ? 'active' : ''}`}
+                onClick={() => setIsEraser(true)}
                 title="Silgi (Çizilen mürekkebi siler)"
               >
                 <Eraser size={13} />
@@ -497,7 +421,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
           <div className="daily-notes-pen-subbar">
             {/* Thickness (Kalınlık / İncelik) Selector */}
             <div className="pen-size-picker-group">
-              <span className="picker-label desktop-only">Kalınlık:</span>
+              <span className="picker-label">Kalınlık:</span>
               <div className="pen-sizes-row">
                 {PEN_SIZES.map((sz) => (
                   <button
@@ -524,7 +448,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               <div className="pen-colors-picker-group">
                 <span className="picker-label desktop-only">Renk:</span>
                 <div className="pen-colors-row">
-                  {activeColors.map((c) => {
+                  {COLORS.map((c) => {
                     const colorCode = 'hex' in c && c.hex ? c.hex : (isDarkMode ? (c as any).dark : (c as any).light);
                     const isSelected = selectedColor === c.id;
                     return (
@@ -558,13 +482,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               {!localStorage.getItem(`asistan_canvas_${selectedDate}`) && (
                 <div className="canvas-watermark">
                   <PenTool size={22} strokeWidth={1.5} />
-                  <span>
-                    {penStyle === 'highlighter'
-                      ? 'Fosforlu vurgulayıcı ile serbestçe çiz & vurgula'
-                      : penStyle === 'fountain'
-                      ? 'Dolma kalem ile kaligrafik yazı yaz & çiz'
-                      : 'Apple Pencil veya parmakla serbestçe not alın & çizin'}
-                  </span>
+                  <span>Apple Pencil veya parmakla serbestçe not alın & çizin</span>
                 </div>
               )}
             </div>
