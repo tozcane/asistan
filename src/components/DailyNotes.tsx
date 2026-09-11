@@ -20,7 +20,6 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   const [textContent, setTextContent] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('default');
   const [isEraser, setIsEraser] = useState<boolean>(false);
-  const [penOnlyMode, setPenOnlyMode] = useState<boolean>(true); // Avuç içi reddi varsayılan olarak açık
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -129,18 +128,46 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     };
   }, [selectedDate, mode]);
 
-  // Sayfa Geneli Avuç İçi Reddi (Global Palm Rejection across the ENTIRE website)
+  // Otomatik Kalem Algılama (Apple Pencil Hover, Proximity & Docking Detection)
+  const [isPenNearby, setIsPenNearby] = useState<boolean>(false);
+  const isPenNearbyRef = useRef<boolean>(false);
+  const penIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (mode !== 'pen' || !penOnlyMode) {
+    if (mode !== 'pen') {
+      isPenNearbyRef.current = false;
+      setIsPenNearby(false);
       document.body.classList.remove('pen-mode-active');
+      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
       return;
     }
 
-    document.body.classList.add('pen-mode-active');
+    const activatePenMode = () => {
+      if (!isPenNearbyRef.current) {
+        isPenNearbyRef.current = true;
+        setIsPenNearby(true);
+        document.body.classList.add('pen-mode-active');
+      }
 
-    // 1. Pointer events capture: Sadece parmak/avuç dokunuşlarını sayfanın her yerinde bloke et
+      // Kalem ekrandan uzaklaştığında veya yerine takıldığında 1.8 sn sonra otomatik parmak moduna dön
+      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
+      penIdleTimerRef.current = setTimeout(() => {
+        if (isDrawingRef.current) return;
+        isPenNearbyRef.current = false;
+        setIsPenNearby(false);
+        document.body.classList.remove('pen-mode-active');
+      }, 1800);
+    };
+
+    // Kalem ucu ekrana yaklaştığında (Apple Pencil Hover) veya dokunduğunda anında yakala
     const handleGlobalPointer = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') {
+      if (e.pointerType === 'pen') {
+        activatePenMode();
+        return;
+      }
+
+      // Kalem yakındayken parmak/avuç dokunuşlarını bloke et
+      if (e.pointerType === 'touch' && isPenNearbyRef.current) {
         const target = e.target as HTMLElement | null;
         if (target?.closest('.allow-finger-touch')) {
           return;
@@ -151,19 +178,26 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       }
     };
 
-    // 2. Touch events capture: Sayfanın istemsiz kaymasını, buton tıklamalarını ve klavye açılmasını engelle
+    // Touch events: Kalem yakındayken istemsiz sayfa kaydırma ve buton tıklamalarını engelle
     const handleGlobalTouch = (e: TouchEvent) => {
+      // Kalem uzaktaysa / takılıysa parmak dokunuşunu serbest bırak
+      if (!isPenNearbyRef.current) {
+        return;
+      }
+
       const target = e.target as HTMLElement | null;
       if (target?.closest('.allow-finger-touch')) {
         return;
       }
-      // Kalemle çizim yapılırken el/avuç ekrana değdiğinde (1 veya çoklu nokta) tamamen engelle
+
+      // Kalem çizim yaparken el temasını tamamen engelle
       if (isDrawingRef.current) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         return;
       }
+
       // Tek parmak / avuç temasını engelle (2 parmakla sayfa kaydırmaya izin ver)
       if (e.touches.length === 1) {
         e.preventDefault();
@@ -172,10 +206,10 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
       }
     };
 
-    window.addEventListener('pointerdown', handleGlobalPointer, { capture: true, passive: false });
     window.addEventListener('pointermove', handleGlobalPointer, { capture: true, passive: false });
-    window.addEventListener('pointerup', handleGlobalPointer, { capture: true, passive: false });
-    window.addEventListener('pointercancel', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointerdown', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointerover', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointerenter', handleGlobalPointer, { capture: true, passive: false });
 
     window.addEventListener('touchstart', handleGlobalTouch, { capture: true, passive: false });
     window.addEventListener('touchmove', handleGlobalTouch, { capture: true, passive: false });
@@ -184,17 +218,18 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
     return () => {
       document.body.classList.remove('pen-mode-active');
-      window.removeEventListener('pointerdown', handleGlobalPointer, { capture: true });
+      if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
       window.removeEventListener('pointermove', handleGlobalPointer, { capture: true });
-      window.removeEventListener('pointerup', handleGlobalPointer, { capture: true });
-      window.removeEventListener('pointercancel', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointerdown', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointerover', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointerenter', handleGlobalPointer, { capture: true });
 
       window.removeEventListener('touchstart', handleGlobalTouch, { capture: true });
       window.removeEventListener('touchmove', handleGlobalTouch, { capture: true });
       window.removeEventListener('touchend', handleGlobalTouch, { capture: true });
       window.removeEventListener('touchcancel', handleGlobalTouch, { capture: true });
     };
-  }, [mode, penOnlyMode]);
+  }, [mode]);
 
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -217,11 +252,17 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    // 1. AVUÇ İÇİ KORUMASI: Sadece Kalem modu açıkken parmak/avuç dokunuşlarını YÜZDE YÜZ reddet
-    if (penOnlyMode && e.pointerType === 'touch') {
+    // 1. AVUÇ İÇİ KORUMASI: Kalem ekrandayken veya yakındayken parmak/avuç dokunuşlarını reddet
+    if (isPenNearbyRef.current && e.pointerType === 'touch') {
       e.preventDefault();
       e.stopPropagation();
       return;
+    }
+
+    if (e.pointerType === 'pen') {
+      isPenNearbyRef.current = true;
+      setIsPenNearby(true);
+      document.body.classList.add('pen-mode-active');
     }
 
     // 2. Halihazırda çizim yapan bir pointer varken ikinci dokunuşu (avuç dayama) reddet
@@ -377,23 +418,38 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
   return (
     <div className="daily-notes-container">
-      {/* Global Palm Rejection Notice Banner */}
-      {mode === 'pen' && penOnlyMode && (
-        <div className="pen-active-global-banner">
+      {/* Automatic Apple Pencil Proximity & Palm Rejection Banner */}
+      {mode === 'pen' && (
+        <div className={`pen-active-global-banner ${isPenNearby ? 'active' : 'idle'}`}>
           <div className="banner-left">
-            <span className="banner-pulse" />
+            <span className={`banner-pulse ${isPenNearby ? 'pulse-active' : 'pulse-idle'}`} />
             <span>
-              ✍️ <strong>Sadece Kalem Modu:</strong> Sayfanın her yerinde avuç koruması devrede. Sayfaya yalnızca Apple Pencil dokunabilir.
+              {isPenNearby ? (
+                <>
+                  ⚡ <strong>Apple Pencil Ekrana Yaklaştı:</strong> Sayfada parmak/avuç dokunuşları otomatik kapatıldı. Sadece kalem ucu çalışır.
+                </>
+              ) : (
+                <>
+                  🖐️ <strong>Dokunmatik Açık (Kalem Takılı / Uzakta):</strong> Sayfayı parmakla serbestçe kullanabilirsiniz. Kalem ekrana yaklaştığında otomatik kilitlenir.
+                </>
+              )}
             </span>
           </div>
-          <button
-            type="button"
-            className="banner-switch-btn allow-finger-touch"
-            onClick={() => setPenOnlyMode(false)}
-            title="Parmakla dokunmayı aç"
-          >
-            🖐️ Parmak Dokunuşunu Aç
-          </button>
+          {isPenNearby && (
+            <button
+              type="button"
+              className="banner-switch-btn allow-finger-touch"
+              onClick={() => {
+                isPenNearbyRef.current = false;
+                setIsPenNearby(false);
+                document.body.classList.remove('pen-mode-active');
+                if (penIdleTimerRef.current) clearTimeout(penIdleTimerRef.current);
+              }}
+              title="Parmak dokunuşunu hemen aç"
+            >
+              🖐️ Dokunmatiği Aç
+            </button>
+          )}
         </div>
       )}
 
@@ -439,17 +495,15 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
           {/* Pen Toolbar Controls */}
           {mode === 'pen' && (
             <div className="daily-notes-pen-tools">
-              {/* Palm Rejection Toggle */}
-              <button
-                type="button"
-                className={`notes-palm-btn allow-finger-touch ${penOnlyMode ? 'active' : ''}`}
-                onClick={() => setPenOnlyMode(!penOnlyMode)}
-                title={penOnlyMode ? 'Avuç İçi Koruması Açık: Sadece Kalem Ucu Yazar' : 'Parmakla Çizim Açık'}
+              {/* Smart Pen Proximity Indicator */}
+              <div
+                className={`notes-palm-btn ${isPenNearby ? 'active' : ''}`}
+                title={isPenNearby ? 'Apple Pencil Algılandı: Avuç koruması devrede' : 'Kalem takılı/uzakta: Dokunmatik aktif'}
               >
                 <ShieldCheck size={13} />
-                <span className="desktop-only">{penOnlyMode ? 'Sadece Kalem (Avuç Koruması)' : 'Kalem + Parmak'}</span>
-                <span className="mobile-only">{penOnlyMode ? 'Sadece Kalem' : 'Parmak'}</span>
-              </button>
+                <span className="desktop-only">{isPenNearby ? '⚡ Kalem Yakında' : '🖐️ Kalem Takılı'}</span>
+                <span className="mobile-only">{isPenNearby ? '⚡ Kalem' : '🖐️ Takılı'}</span>
+              </div>
 
               {/* Color dots */}
               <div className="pen-colors-row">
@@ -523,9 +577,9 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               <div className="canvas-watermark">
                 <PenTool size={22} strokeWidth={1.5} />
                 <span>
-                  {penOnlyMode
-                    ? 'Apple Pencil ile serbestçe yaz & çiz (Avuç koruması aktif)'
-                    : 'Kalem veya parmakla serbestçe yaz & çiz'}
+                  {isPenNearby
+                    ? 'Apple Pencil devrede (Sayfa geneli avuç koruması aktif)'
+                    : 'Apple Pencil yaklaştığında otomatik olarak yazıya başlar'}
                 </span>
               </div>
             )}
