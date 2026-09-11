@@ -14,6 +14,7 @@ interface HeaderProps {
   dayStats: DayStats;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
+  onOpenMorningBriefing?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
   dayStats,
   currentView,
   onChangeView,
+  onOpenMorningBriefing,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -78,6 +80,19 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="header-actions">
+          {/* Sabah Özeti Butonu */}
+          {onOpenMorningBriefing && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onOpenMorningBriefing}
+              title="Sabah Özeti & Günün Planı"
+              style={{ color: '#FF9F0A' }}
+            >
+              <Sun size={18} />
+            </button>
+          )}
+
           {/* Theme Toggle */}
           <button
             className="icon-btn"

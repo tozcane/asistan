@@ -12,7 +12,12 @@ import { InboxDrawer } from './components/InboxDrawer';
 import { MorningNotification } from './components/MorningNotification';
 import { SyncModal } from './components/SyncModal';
 import { SiriVoiceModal } from './components/SiriVoiceModal';
-import { sendMorningSummaryNotification } from './utils/notifications';
+import { TaskAlertBanner } from './components/TaskAlertBanner';
+import {
+  sendMorningSummaryNotification,
+  sendTaskStartNotification,
+  requestNotificationPermission,
+} from './utils/notifications';
 import {
   getStoredRoom,
   saveStoredRoom,
@@ -64,6 +69,10 @@ export default function App() {
 
   // Morning briefing modal state
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+
+  // Real-time task arrival alert
+  const [activeTaskAlert, setActiveTaskAlert] = useState<Task | null>(null);
+  const alertedTasksRef = useRef<Set<string>>(new Set());
 
   // View Mode: 'day' | 'week' | 'month'
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -168,21 +177,63 @@ export default function App() {
       .reduce((acc, t) => acc + (t.durationMinutes || 0), 0),
   };
 
-  // Check for morning briefing notification
+  // Check for morning briefing notification (sabahtan günün planı)
   useEffect(() => {
     const today = getTodayDateString();
     const lastNotifiedDate = localStorage.getItem('structured_last_morning_date');
     const currentHour = new Date().getHours();
 
-    // Trigger on morning opening (before 12:00) if not yet triggered today
-    if (selectedDate === today && lastNotifiedDate !== today && currentHour < 12) {
-      setIsMorningModalOpen(true);
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        sendMorningSummaryNotification(dayTasks);
-      }
-      localStorage.setItem('structured_last_morning_date', today);
+    // Trigger on morning opening (05:00 - 12:59) if not yet triggered today
+    if (selectedDate === today && lastNotifiedDate !== today && currentHour >= 5 && currentHour < 13) {
+      const timer = setTimeout(() => {
+        setIsMorningModalOpen(true);
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          if (Notification.permission === 'granted') {
+            sendMorningSummaryNotification(dayTasks);
+          } else if (Notification.permission === 'default') {
+            requestNotificationPermission().then((perm) => {
+              if (perm === 'granted') {
+                sendMorningSummaryNotification(dayTasks);
+              }
+            });
+          }
+        }
+        localStorage.setItem('structured_last_morning_date', today);
+      }, 600);
+      return () => clearTimeout(timer);
     }
   }, [selectedDate, dayTasks]);
+
+  // Real-time task start time checker: Görev zamanı geldiğinde ana sayfaya bildirim ve ses gelir!
+  useEffect(() => {
+    const checkTaskAlerts = () => {
+      const today = getTodayDateString();
+      const now = new Date();
+      const currentHH = String(now.getHours()).padStart(2, '0');
+      const currentMM = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHH}:${currentMM}`;
+
+      // Bugünün başlamakta olan ve henüz tamamlanmamış görevini bul
+      const dueTask = tasks.find((t) => {
+        if (t.inInbox || t.completed || !t.startTime) return false;
+        if (t.date !== today) return false;
+        return t.startTime === currentTimeStr;
+      });
+
+      if (dueTask) {
+        const alertKey = `${today}_${dueTask.id}_${dueTask.startTime}`;
+        if (!alertedTasksRef.current.has(alertKey)) {
+          alertedTasksRef.current.add(alertKey);
+          setActiveTaskAlert(dueTask);
+          sendTaskStartNotification(dueTask);
+        }
+      }
+    };
+
+    checkTaskAlerts();
+    const timer = setInterval(checkTaskAlerts, 10000); // 10 saniyede bir kontrol et
+    return () => clearInterval(timer);
+  }, [tasks]);
 
   // Push changes to room whenever tasks change
   useEffect(() => {
@@ -457,6 +508,16 @@ export default function App() {
 
   return (
     <div className="app-viewport">
+      {/* Real-time Task Time Alert Banner (Görev zamanı geldiğinde ana sayfaya bildirim) */}
+      <TaskAlertBanner
+        task={activeTaskAlert}
+        onClose={() => setActiveTaskAlert(null)}
+        onComplete={(taskId) => {
+          handleToggleComplete(taskId);
+          setActiveTaskAlert(null);
+        }}
+      />
+
       {/* Top Header with Date Strip & View Switcher */}
       <Header
         selectedDate={selectedDate}
@@ -472,6 +533,7 @@ export default function App() {
         dayStats={dayStats}
         currentView={viewMode}
         onChangeView={setViewMode}
+        onOpenMorningBriefing={() => setIsMorningModalOpen(true)}
       />
 
       {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}
