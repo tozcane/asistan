@@ -62,6 +62,11 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     const height = Math.floor(rect.height) || 380;
 
     const dpr = window.devicePixelRatio || 1;
+    // Don't re-initialize canvas if already matching dimension
+    if (canvas.width === width * dpr && canvas.height === height * dpr) {
+      return;
+    }
+
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     canvas.style.width = `${width}px`;
@@ -96,17 +101,100 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     }
   }, [selectedDate, mode]);
 
-  // Window resize handler with auto-save
+  // Window resize handler with auto-save and debouncing (never wipe while drawing)
   useEffect(() => {
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const handleResize = () => {
-      if (mode === 'pen') {
-        saveCanvasState();
-        restoreCanvas();
-      }
+      if (mode !== 'pen' || isDrawingRef.current) return;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const container = containerRef.current;
+        const canvas = canvasRef.current;
+        if (!container || !canvas) return;
+        const rect = container.getBoundingClientRect();
+        const width = Math.floor(rect.width);
+        const height = Math.floor(rect.height);
+        const dpr = window.devicePixelRatio || 1;
+        // Only restore if width or height changed significantly (e.g. orientation flip)
+        if (Math.abs(canvas.width - width * dpr) > 20 || Math.abs(canvas.height - height * dpr) > 20) {
+          saveCanvasState();
+          restoreCanvas();
+        }
+      }, 150);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (resizeTimer) clearTimeout(resizeTimer);
+    };
   }, [selectedDate, mode]);
+
+  // Sayfa Geneli Avuç İçi Reddi (Global Palm Rejection across the ENTIRE website)
+  useEffect(() => {
+    if (mode !== 'pen' || !penOnlyMode) {
+      document.body.classList.remove('pen-mode-active');
+      return;
+    }
+
+    document.body.classList.add('pen-mode-active');
+
+    // 1. Pointer events capture: Sadece parmak/avuç dokunuşlarını sayfanın her yerinde bloke et
+    const handleGlobalPointer = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('.allow-finger-touch')) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    };
+
+    // 2. Touch events capture: Sayfanın istemsiz kaymasını, buton tıklamalarını ve klavye açılmasını engelle
+    const handleGlobalTouch = (e: TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.allow-finger-touch')) {
+        return;
+      }
+      // Kalemle çizim yapılırken el/avuç ekrana değdiğinde (1 veya çoklu nokta) tamamen engelle
+      if (isDrawingRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
+      // Tek parmak / avuç temasını engelle (2 parmakla sayfa kaydırmaya izin ver)
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+    };
+
+    window.addEventListener('pointerdown', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointermove', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointerup', handleGlobalPointer, { capture: true, passive: false });
+    window.addEventListener('pointercancel', handleGlobalPointer, { capture: true, passive: false });
+
+    window.addEventListener('touchstart', handleGlobalTouch, { capture: true, passive: false });
+    window.addEventListener('touchmove', handleGlobalTouch, { capture: true, passive: false });
+    window.addEventListener('touchend', handleGlobalTouch, { capture: true, passive: false });
+    window.addEventListener('touchcancel', handleGlobalTouch, { capture: true, passive: false });
+
+    return () => {
+      document.body.classList.remove('pen-mode-active');
+      window.removeEventListener('pointerdown', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointermove', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointerup', handleGlobalPointer, { capture: true });
+      window.removeEventListener('pointercancel', handleGlobalPointer, { capture: true });
+
+      window.removeEventListener('touchstart', handleGlobalTouch, { capture: true });
+      window.removeEventListener('touchmove', handleGlobalTouch, { capture: true });
+      window.removeEventListener('touchend', handleGlobalTouch, { capture: true });
+      window.removeEventListener('touchcancel', handleGlobalTouch, { capture: true });
+    };
+  }, [mode, penOnlyMode]);
 
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -289,6 +377,26 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
   return (
     <div className="daily-notes-container">
+      {/* Global Palm Rejection Notice Banner */}
+      {mode === 'pen' && penOnlyMode && (
+        <div className="pen-active-global-banner">
+          <div className="banner-left">
+            <span className="banner-pulse" />
+            <span>
+              ✍️ <strong>Sadece Kalem Modu:</strong> Sayfanın her yerinde avuç koruması devrede. Sayfaya yalnızca Apple Pencil dokunabilir.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="banner-switch-btn allow-finger-touch"
+            onClick={() => setPenOnlyMode(false)}
+            title="Parmakla dokunmayı aç"
+          >
+            🖐️ Parmak Dokunuşunu Aç
+          </button>
+        </div>
+      )}
+
       {/* Header with Title & Mode Switcher */}
       <div className="daily-notes-header">
         <div className="daily-notes-title-group">
@@ -304,7 +412,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
           <div className="daily-notes-mode-tabs">
             <button
               type="button"
-              className={`notes-tab-btn ${mode === 'pen' ? 'active' : ''}`}
+              className={`notes-tab-btn allow-finger-touch ${mode === 'pen' ? 'active' : ''}`}
               onClick={() => {
                 setMode('pen');
                 setIsEraser(false);
@@ -319,7 +427,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
             </button>
             <button
               type="button"
-              className={`notes-tab-btn ${mode === 'text' ? 'active' : ''}`}
+              className={`notes-tab-btn allow-finger-touch ${mode === 'text' ? 'active' : ''}`}
               onClick={() => setMode('text')}
               title="Metin / Klavye Notu Modu"
             >
@@ -334,7 +442,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               {/* Palm Rejection Toggle */}
               <button
                 type="button"
-                className={`notes-palm-btn ${penOnlyMode ? 'active' : ''}`}
+                className={`notes-palm-btn allow-finger-touch ${penOnlyMode ? 'active' : ''}`}
                 onClick={() => setPenOnlyMode(!penOnlyMode)}
                 title={penOnlyMode ? 'Avuç İçi Koruması Açık: Sadece Kalem Ucu Yazar' : 'Parmakla Çizim Açık'}
               >
