@@ -19,6 +19,11 @@ const MONTH_NAMES_TR = [
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
 ];
 
+const SHORT_MONTH_NAMES_TR = [
+  'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+  'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
+];
+
 export const WeekView: React.FC<WeekViewProps> = ({
   tasks,
   selectedDate,
@@ -75,8 +80,9 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
   // Haftanın 7 gününü hesapla
   const weekDays = React.useMemo(() => {
-    const days: { dateStr: string; dayName: string; dayNum: number; isToday: boolean }[] = [];
+    const days: { dateStr: string; dayName: string; shortDayName: string; dayNum: number; isToday: boolean }[] = [];
     const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+    const shortDayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cts', 'Paz'];
     const todayStr = formatDateString(new Date());
 
     for (let i = 0; i < 7; i++) {
@@ -86,6 +92,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
       days.push({
         dateStr: str,
         dayName: dayNames[i],
+        shortDayName: shortDayNames[i],
         dayNum: d.getDate(),
         isToday: str === todayStr,
       });
@@ -95,19 +102,28 @@ export const WeekView: React.FC<WeekViewProps> = ({
   }, [monday]);
 
   // Hafta başlığı formatı (örn: "8 - 14 Eylül 2026" veya "29 Eylül - 5 Ekim 2026")
-  const weekRangeLabel = React.useMemo(() => {
-    if (weekDays.length < 7) return '';
+  const weekRangeLabels = React.useMemo(() => {
+    if (weekDays.length < 7) return { full: '', short: '' };
     const firstDay = weekDays[0];
     const lastDay = weekDays[6];
     const [y1, m1] = firstDay.dateStr.split('-').map(Number);
     const [y2, m2] = lastDay.dateStr.split('-').map(Number);
 
     if (m1 === m2 && y1 === y2) {
-      return `${firstDay.dayNum} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1}`;
+      return {
+        full: `${firstDay.dayNum} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1}`,
+        short: `${firstDay.dayNum} – ${lastDay.dayNum} ${SHORT_MONTH_NAMES_TR[m1 - 1]}`,
+      };
     } else if (y1 === y2) {
-      return `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y1}`;
+      return {
+        full: `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y1}`,
+        short: `${firstDay.dayNum} ${SHORT_MONTH_NAMES_TR[m1 - 1]} – ${lastDay.dayNum} ${SHORT_MONTH_NAMES_TR[m2 - 1]}`,
+      };
     } else {
-      return `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y2}`;
+      return {
+        full: `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y2}`,
+        short: `${firstDay.dayNum} ${SHORT_MONTH_NAMES_TR[m1 - 1]} – ${lastDay.dayNum} ${SHORT_MONTH_NAMES_TR[m2 - 1]}`,
+      };
     }
   }, [weekDays]);
 
@@ -116,7 +132,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
       {/* Week Navigation Header - Aynen Ay Değiştirme Butonları Gibi */}
       <div className="month-nav-header">
         <div className="month-title">
-          {weekRangeLabel}
+          <span className="desktop-only">{weekRangeLabels.full}</span>
+          <span className="mobile-only">{weekRangeLabels.short}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -181,14 +198,15 @@ export const WeekView: React.FC<WeekViewProps> = ({
                 <div className="week-strip-num">{day.dayNum}</div>
                 <div className="week-strip-name-box">
                   <div className="week-strip-name-row">
-                    <span className="week-strip-day-name">{day.dayName}</span>
+                    <span className="week-strip-day-name desktop-only">{day.dayName}</span>
+                    <span className="week-strip-day-name mobile-only">{day.shortDayName}</span>
                     {day.isToday && (
                       <span className="week-strip-today-badge">BUGÜN</span>
                     )}
                   </div>
                   {holiday && (
                     <span className="week-strip-holiday" title={holiday.name}>
-                      {holiday.badge} {holiday.name}
+                      {holiday.badge} <span className="desktop-only">{holiday.name}</span>
                     </span>
                   )}
                 </div>
@@ -201,7 +219,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
                     className="week-strip-empty"
                     onClick={() => onAddNewAtDate(day.dateStr)}
                   >
-                    + Görev ekle
+                    <span className="desktop-only">+ Görev ekle</span>
+                    <span className="mobile-only">+ Ekle</span>
                   </div>
                 ) : (
                   <div className={`week-strip-tasks-flow ${densityClass}`}>
@@ -259,7 +278,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
                   className="week-strip-goto-btn"
                   onClick={() => onSwitchToDayView(day.dateStr)}
                 >
-                  Güne Git
+                  <span className="desktop-only">Güne Git</span>
+                  <span className="mobile-only">Git</span>
                 </button>
               </div>
             </div>

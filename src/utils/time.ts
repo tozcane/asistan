@@ -42,7 +42,7 @@ export function formatDateString(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function getTurkishDateLabel(dateStr: string): { title: string; subtitle: string } {
+export function getTurkishDateLabel(dateStr: string): { title: string; subtitle: string; shortTitle: string; shortSubtitle: string } {
   const [year, month, day] = dateStr.split('-').map(Number);
   const targetDate = new Date(year, month - 1, day);
   const today = new Date();
@@ -52,23 +52,31 @@ export function getTurkishDateLabel(dateStr: string): { title: string; subtitle:
   const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
   const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+  const shortDayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cts'];
   const monthNames = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
+  const shortMonthNames = [
+    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
+  ];
 
   const dayName = dayNames[targetDate.getDay()];
+  const shortDayName = shortDayNames[targetDate.getDay()];
   const monthName = monthNames[targetDate.getMonth()];
+  const shortMonthName = shortMonthNames[targetDate.getMonth()];
   const subtitle = `${day} ${monthName} ${dayName}`;
+  const shortSubtitle = `${day} ${shortMonthName} ${shortDayName}`;
 
   if (diffDays === 0) {
-    return { title: 'Bugün', subtitle };
+    return { title: 'Bugün', subtitle, shortTitle: 'Bugün', shortSubtitle };
   } else if (diffDays === 1) {
-    return { title: 'Yarın', subtitle };
+    return { title: 'Yarın', subtitle, shortTitle: 'Yarın', shortSubtitle };
   } else if (diffDays === -1) {
-    return { title: 'Dün', subtitle };
+    return { title: 'Dün', subtitle, shortTitle: 'Dün', shortSubtitle };
   } else {
-    return { title: dayName, subtitle };
+    return { title: dayName, subtitle, shortTitle: shortDayName, shortSubtitle };
   }
 }
 

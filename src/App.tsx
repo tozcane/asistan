@@ -510,7 +510,9 @@ export default function App() {
       {/* Floating Action Bar */}
       <div className="floating-bar">
         <button className="add-task-btn" onClick={handleOpenGeneralNewModal}>
-          <Plus size={18} /> Yeni Görev
+          <Plus size={16} />
+          <span className="desktop-only">Yeni Görev</span>
+          <span className="mobile-only">Yeni</span>
         </button>
 
         <button

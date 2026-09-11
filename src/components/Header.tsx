@@ -134,15 +134,17 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <div className="day-single-text-group">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="day-single-title">{dateLabels.title}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="day-single-title desktop-only">{dateLabels.title}</span>
+                <span className="day-single-title mobile-only">{dateLabels.shortTitle}</span>
                 {holiday && (
                   <span className="holiday-badge-compact">
-                    {holiday.badge} {holiday.name}
+                    {holiday.badge} <span className="desktop-only">{holiday.name}</span>
                   </span>
                 )}
               </div>
-              <span className="day-single-subtitle">{dateLabels.subtitle}</span>
+              <span className="day-single-subtitle desktop-only">{dateLabels.subtitle}</span>
+              <span className="day-single-subtitle mobile-only">{dateLabels.shortSubtitle}</span>
             </div>
 
             <button
@@ -159,7 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {selectedDate !== formatDateString(new Date()) && (
               <button
                 type="button"
@@ -172,8 +174,9 @@ export const Header: React.FC<HeaderProps> = ({
 
             {dayStats.totalTasks > 0 && (
               <div className="progress-pill-compact">
-                <Sparkles size={13} />
-                <span>{dayStats.completedTasks}/{dayStats.totalTasks} ({completionPercentage}%)</span>
+                <Sparkles size={12} />
+                <span className="desktop-only">{dayStats.completedTasks}/{dayStats.totalTasks} ({completionPercentage}%)</span>
+                <span className="mobile-only">{dayStats.completedTasks}/{dayStats.totalTasks}</span>
               </div>
             )}
           </div>

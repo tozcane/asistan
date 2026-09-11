@@ -16,6 +16,11 @@ const MONTH_NAMES_TR = [
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
 ];
 
+const SHORT_MONTH_NAMES_TR = [
+  'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+  'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
+];
+
 const WEEKDAY_NAMES_TR = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cts', 'Paz'];
 
 export const MonthView: React.FC<MonthViewProps> = ({
@@ -91,7 +96,8 @@ export const MonthView: React.FC<MonthViewProps> = ({
       {/* Month Navigation Header */}
       <div className="month-nav-header">
         <div className="month-title">
-          {MONTH_NAMES_TR[month]} {year}
+          <span className="desktop-only">{MONTH_NAMES_TR[month]} {year}</span>
+          <span className="mobile-only">{SHORT_MONTH_NAMES_TR[month]} {year}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

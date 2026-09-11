@@ -100,13 +100,16 @@ export const Timeline: React.FC<TimelineProps> = ({
                 title="Bu boşluğa görev eklemek için tıklayın"
               >
                 <div className="free-time-text">
-                  <Coffee size={16} style={{ color: '#f1c40f' }} />
+                  <Coffee size={15} style={{ color: '#f1c40f' }} />
                   <span>
-                    {formatDuration(slot.durationMinutes)} Boş Zaman ({slot.startTime} - {slot.endTime})
+                    <span className="desktop-only">{formatDuration(slot.durationMinutes)} Boş Zaman ({slot.startTime} - {slot.endTime})</span>
+                    <span className="mobile-only">{formatDuration(slot.durationMinutes)} Boş</span>
                   </span>
                 </div>
                 <div className="free-time-action">
-                  <Plus size={14} /> Görev Ekle
+                  <Plus size={13} />
+                  <span className="desktop-only"> Görev Ekle</span>
+                  <span className="mobile-only"> Ekle</span>
                 </div>
               </div>
             </div>
