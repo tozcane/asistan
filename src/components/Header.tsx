@@ -71,7 +71,10 @@ export const Header: React.FC<HeaderProps> = ({
               <PenTool size={9} color="#ffffff" strokeWidth={2.6} />
             </div>
           </div>
-          <span>Asistan</span>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+            <span>Asistan</span>
+            <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.5, letterSpacing: '0.5px', color: '#0A84FF' }}>toe^^</span>
+          </span>
         </div>
 
         <div className="header-actions">

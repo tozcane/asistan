@@ -195,6 +195,10 @@ export const MonthView: React.FC<MonthViewProps> = ({
           );
         })}
       </div>
+
+      <div style={{ textAlign: 'center', padding: '24px 0 90px', fontSize: 11, fontWeight: 700, opacity: 0.35, letterSpacing: '1px', userSelect: 'none' }}>
+        toe^^
+      </div>
     </div>
   );
 };

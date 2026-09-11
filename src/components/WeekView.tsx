@@ -48,6 +48,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
     setViewDate((prev) => {
       const next = new Date(prev);
       next.setDate(prev.getDate() - 7);
+      onSelectDate(formatDateString(next));
       return next;
     });
   };
@@ -56,6 +57,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
     setViewDate((prev) => {
       const next = new Date(prev);
       next.setDate(prev.getDate() + 7);
+      onSelectDate(formatDateString(next));
       return next;
     });
   };
@@ -65,6 +67,11 @@ export const WeekView: React.FC<WeekViewProps> = ({
     setViewDate(today);
     onSelectDate(formatDateString(today));
   };
+
+  React.useEffect(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    setViewDate(new Date(y, m - 1, d));
+  }, [selectedDate]);
 
   // Haftanın 7 gününü hesapla
   const weekDays = React.useMemo(() => {
@@ -259,6 +266,10 @@ export const WeekView: React.FC<WeekViewProps> = ({
           </div>
         );
       })}
+
+      <div style={{ textAlign: 'center', padding: '24px 0 90px', fontSize: 11, fontWeight: 700, opacity: 0.35, letterSpacing: '1px', userSelect: 'none' }}>
+        toe^^
+      </div>
     </div>
   );
 };
