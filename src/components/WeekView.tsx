@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, Check, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Task } from '../types';
 import { formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
@@ -14,26 +14,75 @@ interface WeekViewProps {
   onSwitchToDayView: (date: string) => void;
 }
 
+const MONTH_NAMES_TR = [
+  'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+];
+
 export const WeekView: React.FC<WeekViewProps> = ({
   tasks,
   selectedDate,
+  onSelectDate,
   onToggleComplete,
   onEditTask,
   onAddNewAtDate,
   onSwitchToDayView,
 }) => {
-  // Compute Monday of the current week containing selectedDate
-  const weekDays = React.useMemo(() => {
-    const [year, month, day] = selectedDate.split('-').map(Number);
-    const curr = new Date(year, month - 1, day);
-    
-    // In JS, getDay(): 0 = Sun, 1 = Mon ... 6 = Sat
-    const dayOfWeek = curr.getDay();
-    const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    
-    const monday = new Date(curr);
-    monday.setDate(curr.getDate() + distanceToMonday);
+  // Haftalık navigasyon için seçili tarihe göre Pazartesi bazlı hafta hesaplaması
+  const [year, month, day] = selectedDate.split('-').map(Number);
+  const curr = new Date(year, month - 1, day);
+  const dayOfWeek = curr.getDay();
+  const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(curr);
+  monday.setDate(curr.getDate() + distanceToMonday);
 
+  // Hafta değiştirme fonksiyonları (7 gün geri / ileri)
+  const handlePrevWeek = () => {
+    const prev = new Date(monday);
+    prev.setDate(monday.getDate() - 7);
+    onSelectDate(formatDateString(prev));
+  };
+
+  const handleNextWeek = () => {
+    const next = new Date(monday);
+    next.setDate(monday.getDate() + 7);
+    onSelectDate(formatDateString(next));
+  };
+
+  const handleCurrentWeek = () => {
+    onSelectDate(formatDateString(new Date()));
+  };
+
+  // Dokunmatik / iPad / Mobil kaydırma (Swipe) desteği
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || touchStartY === null) return;
+    const diffX = e.changedTouches[0].clientX - touchStartX;
+    const diffY = e.changedTouches[0].clientY - touchStartY;
+
+    // Yatay kaydırma dikeyden belirginse ve en az 45px ise haftayı değiştir
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 45) {
+      if (diffX > 0) {
+        // Sağa kaydırma -> Önceki Hafta
+        handlePrevWeek();
+      } else {
+        // Sola kaydırma -> Sonraki Hafta
+        handleNextWeek();
+      }
+    }
+    setTouchStartX(null);
+    setTouchStartY(null);
+  };
+
+  // Haftanın 7 gününü hesapla
+  const weekDays = React.useMemo(() => {
     const days: { dateStr: string; dayName: string; dayNum: number; isToday: boolean }[] = [];
     const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
     const todayStr = formatDateString(new Date());
@@ -51,10 +100,72 @@ export const WeekView: React.FC<WeekViewProps> = ({
     }
 
     return days;
-  }, [selectedDate]);
+  }, [monday]);
+
+  // Hafta başlığı formatı (örn: "8 - 14 Eylül 2026" veya "29 Eylül - 5 Ekim 2026")
+  const weekRangeLabel = React.useMemo(() => {
+    if (weekDays.length < 7) return '';
+    const firstDay = weekDays[0];
+    const lastDay = weekDays[6];
+    const [y1, m1] = firstDay.dateStr.split('-').map(Number);
+    const [y2, m2] = lastDay.dateStr.split('-').map(Number);
+
+    if (m1 === m2 && y1 === y2) {
+      return `${firstDay.dayNum} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1}`;
+    } else if (y1 === y2) {
+      return `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y1}`;
+    } else {
+      return `${firstDay.dayNum} ${MONTH_NAMES_TR[m1 - 1]} ${y1} – ${lastDay.dayNum} ${MONTH_NAMES_TR[m2 - 1]} ${y2}`;
+    }
+  }, [weekDays]);
+
+  const isCurrentWeek = weekDays.some((d) => d.isToday);
 
   return (
-    <div className="week-view-container">
+    <div
+      className="week-view-container"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Week Navigation Header */}
+      <div className="week-nav-header">
+        <div className="week-range-title">
+          {weekRangeLabel}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={handlePrevWeek}
+            title="Önceki Hafta (Sola kaydırabilirsin)"
+            style={{ width: 34, height: 34 }}
+          >
+            <ChevronLeft size={18} />
+          </button>
+
+          {!isCurrentWeek && (
+            <button
+              type="button"
+              className="month-today-btn"
+              onClick={handleCurrentWeek}
+              title="Bu Haftaya Dön"
+            >
+              Bu Hafta
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={handleNextWeek}
+            title="Sonraki Hafta (Sağa kaydırabilirsin)"
+            style={{ width: 34, height: 34 }}
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
       {weekDays.map((day) => {
         const dayTasks = tasks
           .filter((t) => t.date === day.dateStr && !t.inInbox)

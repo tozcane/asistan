@@ -970,6 +970,32 @@ body {
   flex: 1;
   min-height: calc(100dvh - 90px);
   height: calc(100dvh - 90px);
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Week Navigation Header */
+.week-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.week-range-title {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+[data-theme='light'] .week-range-title {
+  color: #000000 !important;
+}
+
+:root .week-range-title {
+  color: #ffffff;
 }
 
 .week-day-strip {
