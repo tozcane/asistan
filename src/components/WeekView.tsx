@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Plus, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Task } from '../types';
 import { formatDateString } from '../utils/time';
@@ -53,22 +53,30 @@ export const WeekView: React.FC<WeekViewProps> = ({
     onSelectDate(formatDateString(new Date()));
   };
 
-  // Dokunmatik / iPad / Mobil kaydırma (Swipe) desteği
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  // Dokunmatik / iPad / Mobil kaydırma (Swipe) ve Fare ile Gezinme Desteği
+  const touchStartXRef = React.useRef<number | null>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+  const swipedRef = React.useRef<boolean>(false);
+  const lastWheelTimeRef = React.useRef<number>(0);
+  const isMouseDownRef = React.useRef<boolean>(false);
+  const mouseStartXRef = React.useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-    setTouchStartY(e.touches[0].clientY);
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    swipedRef.current = false;
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null || touchStartY === null) return;
-    const diffX = e.changedTouches[0].clientX - touchStartX;
-    const diffY = e.changedTouches[0].clientY - touchStartY;
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || touchStartYRef.current === null || swipedRef.current) return;
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = currentX - touchStartXRef.current;
+    const diffY = currentY - touchStartYRef.current;
 
-    // Yatay kaydırma dikeyden belirginse ve en az 45px ise haftayı değiştir
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 45) {
+    // Yatay hareket dikeyden belirginse ve 35px eşiğini aştıysa anında haftayı değiştir
+    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY) * 1.1) {
+      swipedRef.current = true;
       if (diffX > 0) {
         // Sağa kaydırma -> Önceki Hafta
         handlePrevWeek();
@@ -77,8 +85,75 @@ export const WeekView: React.FC<WeekViewProps> = ({
         handleNextWeek();
       }
     }
-    setTouchStartX(null);
-    setTouchStartY(null);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!swipedRef.current && touchStartXRef.current !== null && touchStartYRef.current !== null) {
+      const endX = e.changedTouches[0]?.clientX ?? touchStartXRef.current;
+      const endY = e.changedTouches[0]?.clientY ?? touchStartYRef.current;
+      const diffX = endX - touchStartXRef.current;
+      const diffY = endY - touchStartYRef.current;
+
+      // Hızlı dokunup bırakma (flick) hareketi
+      if (Math.abs(diffX) > 25 && Math.abs(diffX) > Math.abs(diffY)) {
+        swipedRef.current = true;
+        if (diffX > 0) {
+          handlePrevWeek();
+        } else {
+          handleNextWeek();
+        }
+      }
+    }
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    swipedRef.current = false;
+  };
+
+  const handleTouchCancel = () => {
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+    swipedRef.current = false;
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    // Mac / iPad Magic Keyboard trackpad yatay kaydırma desteği
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 25) {
+      const now = Date.now();
+      if (now - lastWheelTimeRef.current < 450) return;
+      lastWheelTimeRef.current = now;
+      if (e.deltaX > 25) {
+        handleNextWeek();
+      } else if (e.deltaX < -25) {
+        handlePrevWeek();
+      }
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    // Buton veya görev tıklanmışsa sürüklemeyi başlatma
+    if ((e.target as HTMLElement).closest('button, input, textarea, .week-task-pill')) return;
+    isMouseDownRef.current = true;
+    mouseStartXRef.current = e.clientX;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isMouseDownRef.current || mouseStartXRef.current === null) return;
+    const diffX = e.clientX - mouseStartXRef.current;
+    if (Math.abs(diffX) > 50) {
+      isMouseDownRef.current = false;
+      mouseStartXRef.current = null;
+      if (diffX > 0) {
+        handlePrevWeek();
+      } else {
+        handleNextWeek();
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    isMouseDownRef.current = false;
+    mouseStartXRef.current = null;
   };
 
   // Haftanın 7 gününü hesapla
@@ -125,7 +200,14 @@ export const WeekView: React.FC<WeekViewProps> = ({
     <div
       className="week-view-container"
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       {/* Week Navigation Header */}
       <div className="week-nav-header">

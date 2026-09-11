@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, RotateCcw, Calendar, PenTool, RefreshCw, ChevronLeft, ChevronRight, Mic, Trash2 } from 'lucide-react';
+import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -12,15 +12,9 @@ interface HeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   dayStats: DayStats;
-  onLoadDemoData: () => void;
-  onClearAllTasks: () => void;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
-  currentRoom: string | null;
-  onOpenSyncModal: () => void;
   onOpenSiriModal: () => void;
-  isSyncing: boolean;
-  isOnline?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,15 +23,9 @@ export const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   onToggleTheme,
   dayStats,
-  onLoadDemoData,
-  onClearAllTasks,
   currentView,
   onChangeView,
-  currentRoom,
-  onOpenSyncModal,
   onOpenSiriModal,
-  isSyncing,
-  isOnline = true,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -118,25 +106,6 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="header-actions">
-          {/* Clear All Tasks */}
-          <button
-            className="icon-btn"
-            onClick={onClearAllTasks}
-            title="Tüm Görevleri Sil"
-            style={{ color: '#FF453A' }}
-          >
-            <Trash2 size={17} />
-          </button>
-
-          {/* Demo Data button */}
-          <button
-            className="icon-btn"
-            onClick={onLoadDemoData}
-            title="Örnek Planı Yükle"
-          >
-            <RotateCcw size={18} />
-          </button>
-
           {/* Theme Toggle */}
           <button
             className="icon-btn"
@@ -158,42 +127,6 @@ export const Header: React.FC<HeaderProps> = ({
             }}
           >
             <Mic size={16} />
-          </button>
-
-          {/* Device Sync Button */}
-          <button
-            className="icon-btn"
-            onClick={onOpenSyncModal}
-            title={
-              !isOnline
-                ? 'İnternet bağlantısı yok (Çevrimdışı Mod) - Değişiklikler cihazınıza kaydedildi, internet gelince otomatik eşitlenecek'
-                : currentRoom
-                ? `Eşitlenen Oda: ${currentRoom}`
-                : 'Cihazları Eşitle (iPad ↔ Bilgisayar)'
-            }
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: currentRoom ? '5px 10px' : '7px 10px',
-              borderRadius: 14,
-              backgroundColor: !isOnline
-                ? 'rgba(255, 159, 10, 0.16)'
-                : currentRoom
-                ? 'rgba(48, 209, 88, 0.14)'
-                : 'rgba(10, 132, 255, 0.12)',
-              border: !isOnline
-                ? '1px solid rgba(255, 159, 10, 0.45)'
-                : currentRoom
-                ? '1px solid rgba(48, 209, 88, 0.35)'
-                : '1px solid rgba(10, 132, 255, 0.25)',
-              color: !isOnline ? '#FF9F0A' : currentRoom ? '#30D158' : '#0A84FF',
-              fontWeight: 700,
-              fontSize: 12,
-            }}
-          >
-            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-            <span>{!isOnline ? 'Çevrimdışı' : currentRoom ? currentRoom : 'Eşitle'}</span>
           </button>
         </div>
       </div>

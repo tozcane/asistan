@@ -3,8 +3,11 @@ import type { Task } from '../types';
 const ROOM_STORAGE_KEY = 'asistan_sync_room';
 const API_BASE = window.location.hostname === 'localhost' ? 'https://asistan-app.vercel.app' : '';
 
-export function getStoredRoom(): string | null {
-  return localStorage.getItem(ROOM_STORAGE_KEY);
+export function getStoredRoom(): string {
+  const saved = localStorage.getItem(ROOM_STORAGE_KEY);
+  if (saved && saved.trim()) return saved.trim().toLowerCase();
+  // Varsayılan ortak oda: tahir (tüm cihazlar - iPad, telefon, PC - tek hesapta anında senkronize olur)
+  return 'tahir';
 }
 
 export function saveStoredRoom(room: string) {

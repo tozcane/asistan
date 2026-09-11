@@ -76,10 +76,8 @@ export default function App() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const lastLocalEditTimeRef = useRef<number>(0);
   const isRemoteUpdateRef = useRef<boolean>(false);
-  const [isOnline, setIsOnline] = useState<boolean>(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true
-  );
   const hasOfflineChangesRef = useRef<boolean>(false);
+  const isInitialMountRef = useRef<boolean>(true);
 
   // Sync tasks to LocalStorage
   useEffect(() => {
@@ -121,7 +119,6 @@ export default function App() {
   // Cihazın internete bağlanmasını anlık dinle ve çevrimdışı eklenen tüm görevleri otomatik yükle!
   useEffect(() => {
     const handleOnline = async () => {
-      setIsOnline(true);
       const room = getStoredRoom();
       const saved = localStorage.getItem(STORAGE_KEY);
       const hasOfflineChanges =
@@ -146,16 +143,10 @@ export default function App() {
       }
     };
 
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-
     window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
 
     return () => {
       window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
@@ -196,6 +187,10 @@ export default function App() {
   // Push changes to room whenever tasks change
   useEffect(() => {
     if (!syncRoom) return;
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
     if (isRemoteUpdateRef.current) {
       isRemoteUpdateRef.current = false;
       return;
@@ -208,7 +203,7 @@ export default function App() {
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
       setIsSyncing(false);
-    }, 400);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [tasks, syncRoom]);
@@ -219,13 +214,13 @@ export default function App() {
 
     let isMounted = true;
     const checkRemote = async () => {
-      // If user modified tasks locally in the last 4 seconds, don't overwrite!
-      if (Date.now() - lastLocalEditTimeRef.current < 4000) return;
+      // If user modified tasks locally in the last 1500ms, don't overwrite!
+      if (Date.now() - lastLocalEditTimeRef.current < 1500) return;
 
       try {
         const res = await fetchRoomTasks(syncRoom);
         if (!isMounted) return;
-        if (Date.now() - lastLocalEditTimeRef.current < 4000) return;
+        if (Date.now() - lastLocalEditTimeRef.current < 1500) return;
 
         if (res.exists && Array.isArray(res.tasks)) {
           const remoteJson = JSON.stringify(res.tasks);
@@ -243,14 +238,19 @@ export default function App() {
     };
 
     checkRemote();
-    const interval = setInterval(checkRemote, 3000);
-    const onFocus = () => checkRemote();
-    window.addEventListener('focus', onFocus);
+    const interval = setInterval(checkRemote, 1500);
+    const onFocusOrVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      checkRemote();
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
     };
   }, [syncRoom]);
 
@@ -410,7 +410,20 @@ export default function App() {
       completed: false,
       inInbox: true,
     };
-    setTasks((prev) => [...prev, newTask]);
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      const updated = [...prev, newTask];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
+      }
+      return updated;
+    });
   };
 
   // Schedule task from inbox to the timeline
@@ -426,25 +439,6 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleClearAllTasks = async () => {
-    if (confirm('Tüm görevleri silmek istediğinize emin misiniz? Bu işlem tüm cihazlarınızdan görevleri temizler.')) {
-      setTasks([]);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
-      if (syncRoom) {
-        setIsSyncing(true);
-        await pushRoomTasks(syncRoom, []);
-        setIsSyncing(false);
-        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      }
-    }
-  };
-
-  const handleLoadDemoData = () => {
-    if (confirm('Örnek bir gün planı yüklemek istiyor musunuz? Mevcut görevler güncellenecektir.')) {
-      setTasks(getInitialDemoTasks());
-      setSelectedDate(getTodayDateString());
-    }
-  };
 
   const handleAddNewAtDate = (date: string) => {
     setSelectedDate(date);
@@ -476,15 +470,9 @@ export default function App() {
           });
         }}
         dayStats={dayStats}
-        onLoadDemoData={handleLoadDemoData}
-        onClearAllTasks={handleClearAllTasks}
         currentView={viewMode}
         onChangeView={setViewMode}
-        currentRoom={syncRoom}
-        onOpenSyncModal={() => setIsSyncModalOpen(true)}
         onOpenSiriModal={() => setIsSiriModalOpen(true)}
-        isSyncing={isSyncing}
-        isOnline={isOnline}
       />
 
       {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}
@@ -599,107 +587,4 @@ export default function App() {
   );
 }
 
-// 4 Main Colors demo schedule:
-// Mavi (#0A84FF), Kırmızı (#FF453A), Yeşil (#30D158), Turuncu (#FF9F0A)
-function getInitialDemoTasks(): Task[] {
-  const today = getTodayDateString();
 
-  return [
-    {
-      id: 'demo_1',
-      title: 'Sabah Kahvesi & Günlük Planlama',
-      notes: 'Güne sakin başla ve günün önemli gündem maddelerini incele.',
-      date: today,
-      startTime: '07:30',
-      durationMinutes: 45,
-      color: '#FF9F0A', // Turuncu
-      completed: true,
-    },
-    {
-      id: 'demo_2',
-      title: 'Sabah Koşusu & Egzersiz',
-      notes: 'Parkta 5 km tempo koşusu ve esneme.',
-      date: today,
-      startTime: '08:30',
-      durationMinutes: 60,
-      color: '#30D158', // Yeşil
-      completed: true,
-    },
-    {
-      id: 'demo_3',
-      title: 'Derin Odaklanma: Proje Geliştirme',
-      notes: 'Yeni projenin görsel zaman akışı motorunu tamamla.',
-      date: today,
-      startTime: '10:00',
-      durationMinutes: 120,
-      color: '#0A84FF', // Mavi
-      completed: false,
-    },
-    {
-      id: 'demo_4',
-      title: 'Öğle Yemeği & Kısa Mola',
-      date: today,
-      startTime: '12:45',
-      durationMinutes: 45,
-      color: '#30D158', // Yeşil
-      completed: false,
-    },
-    {
-      id: 'demo_5',
-      title: 'Tasarım ve Mimari Toplantısı',
-      notes: 'Görsel arayüz ve kullanıcı deneyimi incelemesi.',
-      date: today,
-      startTime: '14:00',
-      durationMinutes: 60,
-      color: '#0A84FF', // Mavi
-      completed: false,
-    },
-    {
-      id: 'demo_6',
-      title: 'Kitap Okuma & Zihin Dinlendirme',
-      notes: 'Atomik Alışkanlıklar - Bölüm 4.',
-      date: today,
-      startTime: '16:30',
-      durationMinutes: 45,
-      color: '#FF453A', // Kırmızı
-      completed: false,
-    },
-    {
-      id: 'demo_7',
-      title: 'Akşam Yürüyüşü & Podcast',
-      date: today,
-      startTime: '18:30',
-      durationMinutes: 45,
-      color: '#FF9F0A', // Turuncu
-      completed: false,
-    },
-    // Inbox items
-    {
-      id: 'demo_inbox_1',
-      title: 'Diş hekimi kontrolü için randevu al',
-      date: today,
-      durationMinutes: 15,
-      color: '#FF453A', // Kırmızı
-      completed: false,
-      inInbox: true,
-    },
-    {
-      id: 'demo_inbox_2',
-      title: 'Haftalık bütçe tablosunu kontrol et',
-      date: today,
-      durationMinutes: 30,
-      color: '#0A84FF', // Mavi
-      completed: false,
-      inInbox: true,
-    },
-    {
-      id: 'demo_inbox_3',
-      title: 'Kütüphaneden alınan kitabı iade et',
-      date: today,
-      durationMinutes: 20,
-      color: '#FF9F0A', // Turuncu
-      completed: false,
-      inInbox: true,
-    },
-  ];
-}
