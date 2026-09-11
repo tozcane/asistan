@@ -1808,5 +1808,223 @@ body {
   }
 }
 
+/* Daily Notes & Apple Pencil Scratchpad Styles */
+.daily-notes-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  margin-top: 24px;
+  padding: 14px 18px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
 
+.daily-notes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
 
+.daily-notes-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.daily-notes-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.daily-notes-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.daily-notes-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.daily-notes-mode-tabs {
+  display: flex;
+  align-items: center;
+  background: var(--surface-color, rgba(255, 255, 255, 0.08));
+  padding: 2px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+}
+
+.notes-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.notes-tab-btn.active {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.daily-notes-pen-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pen-colors-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface-color, rgba(255, 255, 255, 0.06));
+  padding: 3px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+
+.pen-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.pen-color-dot.selected {
+  transform: scale(1.25);
+  border-color: #ffffff;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.icon-btn-compact {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-color, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.icon-btn-compact:hover {
+  background: var(--bg-card-hover, rgba(255, 255, 255, 0.14));
+}
+
+.icon-btn-compact.active {
+  background: #0a84ff;
+  color: #ffffff;
+  border-color: #0a84ff;
+}
+
+.daily-notes-content-box {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+  height: 300px;
+  border-radius: 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.daily-notes-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.canvas-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  pointer-events: none;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  user-select: none;
+}
+
+.daily-notes-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 14px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .daily-notes-container {
+    padding: 10px 12px;
+    margin-top: 14px;
+    border-radius: 13px;
+  }
+
+  .daily-notes-content-box {
+    min-height: 220px;
+    height: 250px;
+  }
+
+  .daily-notes-textarea {
+    font-size: 13px;
+    padding: 10px;
+  }
+
+  .canvas-watermark {
+    font-size: 11.5px;
+  }
+}

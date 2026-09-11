@@ -478,6 +478,7 @@ export default function App() {
       {viewMode === 'day' && (
         <Timeline
           tasks={dayTasks}
+          selectedDate={selectedDate}
           isToday={isSelectedToday}
           onToggleComplete={handleToggleComplete}
           onEditTask={handleEditTask}

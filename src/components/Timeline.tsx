@@ -3,9 +3,11 @@ import { Plus, Coffee } from 'lucide-react';
 import type { Task } from '../types';
 import { buildTimeline, formatDuration } from '../utils/time';
 import { TaskCard } from './TaskCard';
+import { DailyNotes } from './DailyNotes';
 
 interface TimelineProps {
   tasks: Task[];
+  selectedDate: string;
   isToday: boolean;
   onToggleComplete: (taskId: string) => void;
   onEditTask: (task: Task) => void;
@@ -15,6 +17,7 @@ interface TimelineProps {
 
 export const Timeline: React.FC<TimelineProps> = ({
   tasks,
+  selectedDate,
   isToday,
   onToggleComplete,
   onEditTask,
@@ -117,6 +120,9 @@ export const Timeline: React.FC<TimelineProps> = ({
         }
 
       })}
+
+      {/* Daily Notes & Apple Pencil Scratchpad Box */}
+      <DailyNotes selectedDate={selectedDate} />
 
       <div style={{ textAlign: 'center', padding: '24px 0 90px', fontSize: 11, fontWeight: 700, opacity: 0.35, letterSpacing: '1px', userSelect: 'none' }}>
         toe^^
