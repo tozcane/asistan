@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { PenTool, FileText, RotateCcw, Trash2, Eraser } from 'lucide-react';
+import { PenTool, FileText, RotateCcw, Trash2, Eraser, ShieldCheck } from 'lucide-react';
 
 interface DailyNotesProps {
   selectedDate: string;
@@ -19,13 +19,14 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   const [mode, setMode] = useState<NoteMode>('pen');
   const [textContent, setTextContent] = useState<string>('');
   const [selectedColor, setSelectedColor] = useState<string>('default');
-  const penSize = 3;
   const [isEraser, setIsEraser] = useState<boolean>(false);
+  const [penOnlyMode, setPenOnlyMode] = useState<boolean>(true); // Avuç içi reddi varsayılan olarak açık
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isDrawingRef = useRef<boolean>(false);
-  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
+  const strokePointsRef = useRef<{ x: number; y: number; width: number }[]>([]);
   const historyRef = useRef<ImageData[]>([]);
 
   const isDarkMode = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
@@ -43,6 +44,13 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     localStorage.setItem(`asistan_note_${selectedDate}`, val);
   };
 
+  const saveCanvasState = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL();
+    localStorage.setItem(`asistan_canvas_${selectedDate}`, dataUrl);
+  };
+
   // Setup / resize and restore canvas for selectedDate
   const restoreCanvas = () => {
     const canvas = canvasRef.current;
@@ -51,7 +59,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
     const rect = container.getBoundingClientRect();
     const width = Math.floor(rect.width) || 320;
-    const height = Math.floor(rect.height) || 280;
+    const height = Math.floor(rect.height) || 380;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
@@ -81,14 +89,18 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
   useEffect(() => {
     if (mode === 'pen') {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       restoreCanvas();
     }
   }, [selectedDate, mode]);
 
-  // Window resize handler
+  // Window resize handler with auto-save
   useEffect(() => {
     const handleResize = () => {
       if (mode === 'pen') {
+        saveCanvasState();
         restoreCanvas();
       }
     };
@@ -96,14 +108,13 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [selectedDate, mode]);
 
-  // Drawing event handlers supporting Apple Pencil & Touch & Mouse
-  const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  const getCanvasCoords = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
     };
   };
 
@@ -117,82 +128,139 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     return (isDarkMode ? colorObj.dark : colorObj.light) || '#000000';
   };
 
-  const saveCanvasState = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL();
-    localStorage.setItem(`asistan_canvas_${selectedDate}`, dataUrl);
-  };
-
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // 1. AVUÇ İÇİ KORUMASI: Sadece Kalem modu açıkken parmak/avuç dokunuşlarını YÜZDE YÜZ reddet
+    if (penOnlyMode && e.pointerType === 'touch') {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // 2. Halihazırda çizim yapan bir pointer varken ikinci dokunuşu (avuç dayama) reddet
+    if (activePointerIdRef.current !== null) {
+      e.preventDefault();
+      return;
+    }
+
+    // 3. Klavyenin açılmasını kesin olarak engelle
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.setPointerCapture(e.pointerId);
+
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    activePointerIdRef.current = e.pointerId;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Save history for undo
+    // Undo snapshot
     try {
       const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      if (historyRef.current.length > 15) historyRef.current.shift();
+      if (historyRef.current.length > 20) historyRef.current.shift();
       historyRef.current.push(snap);
     } catch {
       // ignore
     }
 
     isDrawingRef.current = true;
-    const coords = getCanvasCoords(e);
-    lastPosRef.current = coords;
+    const coords = getCanvasCoords(e.clientX, e.clientY);
 
-    ctx.beginPath();
-    ctx.strokeStyle = getStrokeColor();
-
-    // Apple Pencil pressure sensitivity
-    let width = penSize;
-    if (e.pointerType === 'pen' && e.pressure && e.pressure > 0) {
-      width = Math.max(1.5, penSize * e.pressure * 1.6);
+    // Apple Pencil basınç duyarlılığı (yazı yazmaya uygun 1.2px - 5.5px aralığı)
+    let width = isEraser ? 22 : 2.5;
+    if (!isEraser && e.pointerType === 'pen' && typeof e.pressure === 'number' && e.pressure > 0) {
+      width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + e.pressure * 0.9)));
     }
-    if (isEraser) width = penSize * 4;
 
+    strokePointsRef.current = [{ x: coords.x, y: coords.y, width }];
+
+    ctx.save();
+    ctx.strokeStyle = getStrokeColor();
+    ctx.fillStyle = getStrokeColor();
     ctx.lineWidth = width;
-    ctx.moveTo(coords.x, coords.y);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Nokta atışı (tek dokunma)
+    ctx.beginPath();
+    ctx.arc(coords.x, coords.y, width / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current || !lastPosRef.current) return;
+    if (!isDrawingRef.current || activePointerIdRef.current !== e.pointerId) return;
+
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (!ctx) return;
+    if (!canvas || !ctx) return;
 
-    const coords = getCanvasCoords(e);
+    // Apple Pencil 120Hz/240Hz coalesced events
+    const nativeEv = e.nativeEvent as unknown as { getCoalescedEvents?: () => globalThis.PointerEvent[] };
+    const coalesced = nativeEv?.getCoalescedEvents ? nativeEv.getCoalescedEvents() : [];
+    const rawEvents = coalesced && coalesced.length > 0 ? coalesced : [e];
 
-    ctx.beginPath();
+    ctx.save();
     ctx.strokeStyle = getStrokeColor();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    let width = penSize;
-    if (e.pointerType === 'pen' && e.pressure && e.pressure > 0) {
-      width = Math.max(1.5, penSize * e.pressure * 1.6);
+    for (let i = 0; i < rawEvents.length; i++) {
+      const ev = rawEvents[i];
+      const coords = getCanvasCoords(ev.clientX, ev.clientY);
+
+      let width = isEraser ? 22 : 2.5;
+      if (!isEraser && ev.pointerType === 'pen' && typeof ev.pressure === 'number' && ev.pressure > 0) {
+        width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + ev.pressure * 0.9)));
+      }
+
+      const pts = strokePointsRef.current;
+      pts.push({ x: coords.x, y: coords.y, width });
+
+      if (pts.length >= 3) {
+        const p0 = pts[pts.length - 2];
+        const p1 = pts[pts.length - 1];
+        const midX = (p0.x + p1.x) / 2;
+        const midY = (p0.y + p1.y) / 2;
+
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+        ctx.stroke();
+      } else if (pts.length === 2) {
+        const p0 = pts[0];
+        const p1 = pts[1];
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(p0.x, p0.y);
+        ctx.lineTo(p1.x, p1.y);
+        ctx.stroke();
+      }
     }
-    if (isEraser) width = penSize * 4;
 
-    ctx.lineWidth = width;
-    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-
-    lastPosRef.current = coords;
+    ctx.restore();
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current) return;
+    if (activePointerIdRef.current !== e.pointerId) return;
     isDrawingRef.current = false;
-    lastPosRef.current = null;
+    activePointerIdRef.current = null;
+    strokePointsRef.current = [];
+
     const canvas = canvasRef.current;
-    if (canvas && canvas.hasPointerCapture(e.pointerId)) {
-      canvas.releasePointerCapture(e.pointerId);
+    if (canvas) {
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
     }
     saveCanvasState();
   };
@@ -240,6 +308,9 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               onClick={() => {
                 setMode('pen');
                 setIsEraser(false);
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
               }}
               title="Kalemle Çizim & El Yazısı Modu"
             >
@@ -260,6 +331,18 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
           {/* Pen Toolbar Controls */}
           {mode === 'pen' && (
             <div className="daily-notes-pen-tools">
+              {/* Palm Rejection Toggle */}
+              <button
+                type="button"
+                className={`notes-palm-btn ${penOnlyMode ? 'active' : ''}`}
+                onClick={() => setPenOnlyMode(!penOnlyMode)}
+                title={penOnlyMode ? 'Avuç İçi Koruması Açık: Sadece Kalem Ucu Yazar' : 'Parmakla Çizim Açık'}
+              >
+                <ShieldCheck size={13} />
+                <span className="desktop-only">{penOnlyMode ? 'Sadece Kalem (Avuç Koruması)' : 'Kalem + Parmak'}</span>
+                <span className="mobile-only">{penOnlyMode ? 'Sadece Kalem' : 'Parmak'}</span>
+              </button>
+
               {/* Color dots */}
               <div className="pen-colors-row">
                 {PEN_COLORS.map((c) => {
@@ -322,6 +405,7 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
             <canvas
               ref={canvasRef}
               className="daily-notes-canvas"
+              tabIndex={-1}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -329,8 +413,12 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
             />
             {!localStorage.getItem(`asistan_canvas_${selectedDate}`) && (
               <div className="canvas-watermark">
-                <PenTool size={18} strokeWidth={1.5} />
-                <span>Apple Pencil veya parmakla buraya serbestçe not al & çiz</span>
+                <PenTool size={22} strokeWidth={1.5} />
+                <span>
+                  {penOnlyMode
+                    ? 'Apple Pencil ile serbestçe yaz & çiz (Avuç koruması aktif)'
+                    : 'Kalem veya parmakla serbestçe yaz & çiz'}
+                </span>
               </div>
             )}
           </div>

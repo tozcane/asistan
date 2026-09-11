@@ -43,19 +43,28 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   if (slots.length === 0) {
     return (
-      <div className="empty-timeline">
-        <div className="empty-icon">🗓️</div>
-        <div className="empty-title">Bu güne henüz görev eklenmedi</div>
-        <div className="empty-desc">
-          Gününüzü saat saat planlayarak odaklanmanızı artırın ve serbest zamanlarınızı görün.
+      <div className="timeline-view">
+        <div className="empty-timeline">
+          <div className="empty-icon">🗓️</div>
+          <div className="empty-title">Bu güne henüz görev eklenmedi</div>
+          <div className="empty-desc">
+            Gününüzü saat saat planlayarak odaklanmanızı artırın ve serbest zamanlarınızı görün.
+          </div>
+          <button
+            className="add-task-btn"
+            style={{ marginTop: 20 }}
+            onClick={onOpenNewTaskModal}
+          >
+            <Plus size={18} /> İlk Görevi Ekle
+          </button>
         </div>
-        <button
-          className="add-task-btn"
-          style={{ marginTop: 20 }}
-          onClick={onOpenNewTaskModal}
-        >
-          <Plus size={18} /> İlk Görevi Ekle
-        </button>
+
+        {/* Daily Notes & Apple Pencil Scratchpad Box */}
+        <DailyNotes selectedDate={selectedDate} />
+
+        <div style={{ textAlign: 'center', padding: '24px 0 90px', fontSize: 11, fontWeight: 700, opacity: 0.35, letterSpacing: '1px', userSelect: 'none' }}>
+          toe^^
+        </div>
       </div>
     );
   }
