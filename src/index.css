@@ -1974,6 +1974,131 @@ body.pen-mode-active {
   padding: 10px 14px;
 }
 
+.daily-notes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notes-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pen-styles-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-color, rgba(255, 255, 255, 0.06));
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+.pen-style-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pen-style-tab:hover {
+  color: var(--text-primary);
+}
+
+.pen-style-tab.active {
+  background: var(--bg-card, #2c2c2e);
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='light'] .pen-style-tab.active {
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.pen-style-tab.eraser-tab.active {
+  background: #ff9f0a;
+  color: #ffffff;
+}
+
+.daily-notes-pen-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 4px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+}
+
+.pen-size-picker-group,
+.pen-colors-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.picker-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.pen-sizes-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-color, rgba(255, 255, 255, 0.06));
+  padding: 3px 6px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+}
+
+.pen-size-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pen-size-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pen-size-btn.selected {
+  background: #0a84ff;
+}
+
+.size-dot-inner {
+  border-radius: 50%;
+  background: var(--text-primary);
+  display: block;
+}
+
+.pen-size-btn.selected .size-dot-inner {
+  background: #ffffff;
+}
+
 .notes-section-header {
   display: flex;
   align-items: center;
@@ -1981,12 +2106,11 @@ body.pen-mode-active {
   font-size: 12.5px;
   font-weight: 700;
   color: var(--text-secondary);
-  margin-bottom: 8px;
 }
 
 .notes-palm-indicator {
-  margin-left: auto;
-  display: flex;
+  margin-left: 8px;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;

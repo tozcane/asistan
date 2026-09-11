@@ -5,16 +5,44 @@ interface DailyNotesProps {
   selectedDate: string;
 }
 
-const PEN_COLORS = [
-  { id: 'default', label: 'Varsayılan', light: '#000000', dark: '#FFFFFF' },
+export type PenStyle = 'pilot' | 'fountain' | 'marker' | 'highlighter';
+export type PenSize = 'thin' | 'medium' | 'thick' | 'xlarge';
+
+const PEN_STYLES: { id: PenStyle; label: string; icon: string; title: string }[] = [
+  { id: 'pilot', label: 'Pilot', icon: '🖊️', title: 'Pilot Kalem (İnce ve net)' },
+  { id: 'fountain', label: 'Dolma Kalem', icon: '✒️', title: 'Dolma Kalem (Baskıya duyarlı hat)' },
+  { id: 'marker', label: 'İspirtolu', icon: '🖍️', title: 'İspirtolu Kalem (Doygun ve kalın)' },
+  { id: 'highlighter', label: 'Fosforlu', icon: '✨', title: 'Fosforlu Kalem (Şeffaf vurgulayıcı)' },
+];
+
+const PEN_SIZES: { id: PenSize; label: string; dotSize: number }[] = [
+  { id: 'thin', label: 'İnce', dotSize: 4 },
+  { id: 'medium', label: 'Normal', dotSize: 7 },
+  { id: 'thick', label: 'Kalın', dotSize: 10 },
+  { id: 'xlarge', label: 'Ekstra', dotSize: 14 },
+];
+
+const STANDARD_COLORS = [
+  { id: 'default', label: 'Siyah/Beyaz', light: '#000000', dark: '#FFFFFF' },
   { id: 'blue', label: 'Mavi', hex: '#0A84FF' },
   { id: 'red', label: 'Kırmızı', hex: '#FF453A' },
-  { id: 'yellow', label: 'Sarı', hex: '#FFD60A' },
   { id: 'green', label: 'Yeşil', hex: '#30D158' },
+  { id: 'purple', label: 'Mor', hex: '#BF5AF2' },
+  { id: 'orange', label: 'Turuncu', hex: '#FF9F0A' },
+];
+
+const HIGHLIGHTER_COLORS = [
+  { id: 'hl-green', label: 'Fosforlu Yeşil', hex: '#39FF14' },
+  { id: 'hl-yellow', label: 'Fosforlu Sarı', hex: '#FFE600' },
+  { id: 'hl-pink', label: 'Fosforlu Pembe', hex: '#FF2D55' },
+  { id: 'hl-blue', label: 'Fosforlu Mavi', hex: '#00E5FF' },
+  { id: 'hl-orange', label: 'Fosforlu Turuncu', hex: '#FF9500' },
 ];
 
 export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   const [textContent, setTextContent] = useState<string>('');
+  const [penStyle, setPenStyle] = useState<PenStyle>('pilot');
+  const [penSize, setPenSize] = useState<PenSize>('medium');
   const [selectedColor, setSelectedColor] = useState<string>('default');
   const [isEraser, setIsEraser] = useState<boolean>(false);
 
@@ -45,6 +73,21 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     if (!canvas) return;
     const dataUrl = canvas.toDataURL();
     localStorage.setItem(`asistan_canvas_${selectedDate}`, dataUrl);
+  };
+
+  // Switch pen style helper
+  const handleSelectPenStyle = (style: PenStyle) => {
+    setPenStyle(style);
+    setIsEraser(false);
+    if (style === 'highlighter') {
+      if (!selectedColor.startsWith('hl-')) {
+        setSelectedColor('hl-green'); // Default to Fosforlu Yeşil
+      }
+    } else {
+      if (selectedColor.startsWith('hl-')) {
+        setSelectedColor('default');
+      }
+    }
   };
 
   // Setup / resize and restore canvas for selectedDate
@@ -139,14 +182,49 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
   };
 
   const getStrokeColor = (): string => {
-    const colorObj = PEN_COLORS.find((c) => c.id === selectedColor);
-    if (!colorObj) return isDarkMode ? '#FFFFFF' : '#000000';
-    if (colorObj.hex) return colorObj.hex;
-    return (isDarkMode ? colorObj.dark : colorObj.light) || '#000000';
+    const colors = penStyle === 'highlighter' ? HIGHLIGHTER_COLORS : STANDARD_COLORS;
+    const colorObj = colors.find((c) => c.id === selectedColor);
+    if (!colorObj) {
+      if (penStyle === 'highlighter') return '#39FF14';
+      return isDarkMode ? '#FFFFFF' : '#000000';
+    }
+    if ('hex' in colorObj && colorObj.hex) return colorObj.hex;
+    return (isDarkMode ? (colorObj as any).dark : (colorObj as any).light) || '#000000';
+  };
+
+  const getBaseWidth = (): number => {
+    const sizeMap: Record<PenStyle, Record<PenSize, number>> = {
+      pilot: { thin: 1.5, medium: 2.5, thick: 4.0, xlarge: 6.0 },
+      fountain: { thin: 2.0, medium: 3.5, thick: 5.5, xlarge: 8.0 },
+      marker: { thin: 4.0, medium: 6.5, thick: 9.5, xlarge: 14.0 },
+      highlighter: { thin: 16.0, medium: 24.0, thick: 32.0, xlarge: 42.0 },
+    };
+    return sizeMap[penStyle][penSize];
+  };
+
+  const getComputedWidth = (pressure?: number): number => {
+    if (isEraser) return 26;
+    const base = getBaseWidth();
+    if (typeof pressure === 'number' && pressure > 0) {
+      if (penStyle === 'fountain') {
+        // Dolma Kalem: Dramatic calligraphic tapering
+        return Math.max(1.0, base * (0.35 + pressure * 1.6));
+      } else if (penStyle === 'pilot') {
+        // Pilot Kalem: Smooth, crisp line
+        return Math.max(0.9, base * (0.8 + pressure * 0.35));
+      } else if (penStyle === 'marker') {
+        // İspirtolu Kalem: Bold, rich marker
+        return Math.max(2.5, base * (0.7 + pressure * 0.6));
+      } else if (penStyle === 'highlighter') {
+        // Fosforlu Kalem: Wide highlighter sweep
+        return Math.max(10, base * (0.85 + pressure * 0.25));
+      }
+    }
+    return base;
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    // Palm Rejection: Tuvalde sadece kalem ucu (ve masaüstü fare) çizim yapar, el ayası çizmez
+    // Palm Rejection: Tuvalde sadece kalem ucu (ve masaüstü fare) çizim yapar
     if (e.pointerType === 'touch') {
       e.preventDefault();
       return;
@@ -181,28 +259,34 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
     isDrawingRef.current = true;
     const coords = getCanvasCoords(e.clientX, e.clientY);
-
-    let width = isEraser ? 24 : 2.5;
-    if (!isEraser && e.pointerType === 'pen' && typeof e.pressure === 'number' && e.pressure > 0) {
-      width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + e.pressure * 0.9)));
-    }
+    const width = getComputedWidth(e.pressure);
 
     strokePointsRef.current = [{ x: coords.x, y: coords.y, width }];
 
     ctx.save();
-    // Gerçek silgi: destination-out ile doğrudan pikselleri şeffaflaştırarak siler, asla boyamaz
     if (isEraser) {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
       ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.globalAlpha = 1.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    } else if (penStyle === 'highlighter') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = getStrokeColor();
+      ctx.fillStyle = getStrokeColor();
+      ctx.globalAlpha = 0.38; // Şeffaf fosforlu vurgulayıcı
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = getStrokeColor();
       ctx.fillStyle = getStrokeColor();
+      ctx.globalAlpha = 1.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
     ctx.lineWidth = width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
 
     ctx.beginPath();
     ctx.arc(coords.x, coords.y, width / 2, 0, Math.PI * 2);
@@ -225,21 +309,27 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     if (isEraser) {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.globalAlpha = 1.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    } else if (penStyle === 'highlighter') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = getStrokeColor();
+      ctx.globalAlpha = 0.38;
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = getStrokeColor();
+      ctx.globalAlpha = 1.0;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
     }
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
 
     for (let i = 0; i < rawEvents.length; i++) {
       const ev = rawEvents[i];
       const coords = getCanvasCoords(ev.clientX, ev.clientY);
-
-      let width = isEraser ? 24 : 2.5;
-      if (!isEraser && ev.pointerType === 'pen' && typeof ev.pressure === 'number' && ev.pressure > 0) {
-        width = Math.max(1.2, Math.min(5.5, 2.5 * (0.6 + ev.pressure * 0.9)));
-      }
+      const width = getComputedWidth(ev.pressure);
 
       const pts = strokePointsRef.current;
       pts.push({ x: coords.x, y: coords.y, width });
@@ -308,9 +398,11 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
     historyRef.current = [];
   };
 
+  const activeColors = penStyle === 'highlighter' ? HIGHLIGHTER_COLORS : STANDARD_COLORS;
+
   return (
     <div className="daily-notes-container">
-      {/* Header with Title & Tools */}
+      {/* Header with Title & Action Buttons */}
       <div className="daily-notes-header">
         <div className="daily-notes-title-group">
           <div className="daily-notes-title">
@@ -320,61 +412,27 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
           <span className="daily-notes-subtitle desktop-only">Metin notları ve Apple Pencil el yazısı alanı</span>
         </div>
 
-        {/* Toolbar Controls */}
-        <div className="daily-notes-controls">
-          <div className="daily-notes-pen-tools">
-            {/* Color dots */}
-            <div className="pen-colors-row">
-              {PEN_COLORS.map((c) => {
-                const colorCode = c.hex || (isDarkMode ? c.dark : c.light);
-                const isSelected = selectedColor === c.id && !isEraser;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`pen-color-dot ${isSelected ? 'selected' : ''}`}
-                    style={{ backgroundColor: colorCode }}
-                    onClick={() => {
-                      setSelectedColor(c.id);
-                      setIsEraser(false);
-                    }}
-                    title={c.label}
-                  />
-                );
-              })}
-            </div>
+        {/* Action buttons (Undo, Clear) */}
+        <div className="daily-notes-header-actions">
+          <button
+            type="button"
+            className="icon-btn-compact"
+            onClick={handleUndo}
+            title="Geri Al"
+          >
+            <RotateCcw size={14} />
+            <span className="desktop-only" style={{ fontSize: 11, fontWeight: 700 }}>Geri Al</span>
+          </button>
 
-            {/* True Eraser */}
-            <button
-              type="button"
-              className={`icon-btn-compact ${isEraser ? 'active' : ''}`}
-              onClick={() => setIsEraser(!isEraser)}
-              title="Silgi (Çizilen mürekkebi siler)"
-            >
-              <Eraser size={14} />
-              <span className="desktop-only" style={{ fontSize: 11, fontWeight: 700 }}>Silgi</span>
-            </button>
-
-            {/* Undo */}
-            <button
-              type="button"
-              className="icon-btn-compact"
-              onClick={handleUndo}
-              title="Geri Al"
-            >
-              <RotateCcw size={14} />
-            </button>
-
-            {/* Clear */}
-            <button
-              type="button"
-              className="icon-btn-compact text-danger"
-              onClick={handleClearCanvas}
-              title="Çizimi Temizle"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
+          <button
+            type="button"
+            className="icon-btn-compact text-danger"
+            onClick={handleClearCanvas}
+            title="Tüm Çizimi Temizle"
+          >
+            <Trash2 size={14} />
+            <span className="desktop-only" style={{ fontSize: 11, fontWeight: 700 }}>Temizle</span>
+          </button>
         </div>
       </div>
 
@@ -397,15 +455,95 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
 
         {/* 2. Apple Pencil Drawing & Handwriting Canvas Section */}
         <div className="daily-notes-canvas-card">
-          <div className="notes-section-header">
-            <PenTool size={14} color="#FF9F0A" />
-            <span>Apple Pencil ile Çizim & El Yazısı</span>
-            <span className="notes-palm-indicator">
-              <ShieldCheck size={13} color="#30D158" />
-              <span>Avuç İçi Korumalı</span>
-            </span>
+          <div className="notes-section-header-row">
+            <div className="notes-section-header">
+              <PenTool size={14} color="#FF9F0A" />
+              <span>Apple Pencil Çizim & El Yazısı</span>
+              <span className="notes-palm-indicator">
+                <ShieldCheck size={13} color="#30D158" />
+                <span>Avuç Korumalı</span>
+              </span>
+            </div>
+
+            {/* Pen Style Selector Tabs (Pilot, Dolma, İspirtolu, Fosforlu) */}
+            <div className="pen-styles-bar">
+              {PEN_STYLES.map((style) => (
+                <button
+                  key={style.id}
+                  type="button"
+                  className={`pen-style-tab ${penStyle === style.id && !isEraser ? 'active' : ''}`}
+                  onClick={() => handleSelectPenStyle(style.id)}
+                  title={style.title}
+                >
+                  <span className="pen-icon">{style.icon}</span>
+                  <span className="pen-label">{style.label}</span>
+                </button>
+              ))}
+
+              {/* True Eraser Tab */}
+              <button
+                type="button"
+                className={`pen-style-tab eraser-tab ${isEraser ? 'active' : ''}`}
+                onClick={() => setIsEraser(!isEraser)}
+                title="Silgi (Çizilen mürekkebi siler)"
+              >
+                <Eraser size={13} />
+                <span className="pen-label">Silgi</span>
+              </button>
+            </div>
           </div>
 
+          {/* Sub-toolbar: Thickness selector & Color palette */}
+          <div className="daily-notes-pen-subbar">
+            {/* Thickness (Kalınlık / İncelik) Selector */}
+            <div className="pen-size-picker-group">
+              <span className="picker-label desktop-only">Kalınlık:</span>
+              <div className="pen-sizes-row">
+                {PEN_SIZES.map((sz) => (
+                  <button
+                    key={sz.id}
+                    type="button"
+                    className={`pen-size-btn ${penSize === sz.id && !isEraser ? 'selected' : ''}`}
+                    onClick={() => {
+                      setPenSize(sz.id);
+                      setIsEraser(false);
+                    }}
+                    title={sz.label}
+                  >
+                    <span
+                      className="size-dot-inner"
+                      style={{ width: sz.dotSize, height: sz.dotSize }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Colors Palette */}
+            {!isEraser && (
+              <div className="pen-colors-picker-group">
+                <span className="picker-label desktop-only">Renk:</span>
+                <div className="pen-colors-row">
+                  {activeColors.map((c) => {
+                    const colorCode = 'hex' in c && c.hex ? c.hex : (isDarkMode ? (c as any).dark : (c as any).light);
+                    const isSelected = selectedColor === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`pen-color-dot ${isSelected ? 'selected' : ''}`}
+                        style={{ backgroundColor: colorCode }}
+                        onClick={() => setSelectedColor(c.id)}
+                        title={c.label}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Canvas Box */}
           <div className="daily-notes-content-box" ref={containerRef}>
             <div className="canvas-wrapper">
               <canvas
@@ -420,7 +558,13 @@ export const DailyNotes: React.FC<DailyNotesProps> = ({ selectedDate }) => {
               {!localStorage.getItem(`asistan_canvas_${selectedDate}`) && (
                 <div className="canvas-watermark">
                   <PenTool size={22} strokeWidth={1.5} />
-                  <span>Apple Pencil veya parmakla serbestçe buraya not alın & çizin</span>
+                  <span>
+                    {penStyle === 'highlighter'
+                      ? 'Fosforlu vurgulayıcı ile serbestçe çiz & vurgula'
+                      : penStyle === 'fountain'
+                      ? 'Dolma kalem ile kaligrafik yazı yaz & çiz'
+                      : 'Apple Pencil veya parmakla serbestçe not alın & çizin'}
+                  </span>
                 </div>
               )}
             </div>
