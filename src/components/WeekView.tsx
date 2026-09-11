@@ -28,132 +28,42 @@ export const WeekView: React.FC<WeekViewProps> = ({
   onAddNewAtDate,
   onSwitchToDayView,
 }) => {
-  // Haftalık navigasyon için seçili tarihe göre Pazartesi bazlı hafta hesaplaması
-  const [year, month, day] = selectedDate.split('-').map(Number);
-  const curr = new Date(year, month - 1, day);
-  const dayOfWeek = curr.getDay();
-  const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(curr);
-  monday.setDate(curr.getDate() + distanceToMonday);
+  const [viewDate, setViewDate] = React.useState(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  });
 
-  // Hafta değiştirme fonksiyonları (7 gün geri / ileri)
+  // viewDate değiştikçe Pazartesi bazlı hafta başlangıcını hesapla
+  const monday = React.useMemo(() => {
+    const curr = new Date(viewDate);
+    const dayOfWeek = curr.getDay();
+    const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const m = new Date(curr);
+    m.setDate(curr.getDate() + distanceToMonday);
+    return m;
+  }, [viewDate]);
+
+  // Hafta değiştirme fonksiyonları (Aynen Ay Değiştirme Butonları Gibi)
   const handlePrevWeek = () => {
-    const prev = new Date(monday);
-    prev.setDate(monday.getDate() - 7);
-    onSelectDate(formatDateString(prev));
+    setViewDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() - 7);
+      return next;
+    });
   };
 
   const handleNextWeek = () => {
-    const next = new Date(monday);
-    next.setDate(monday.getDate() + 7);
-    onSelectDate(formatDateString(next));
+    setViewDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + 7);
+      return next;
+    });
   };
 
-  const handleCurrentWeek = () => {
-    onSelectDate(formatDateString(new Date()));
-  };
-
-  // Dokunmatik / iPad / Mobil kaydırma (Swipe) ve Fare ile Gezinme Desteği
-  const touchStartXRef = React.useRef<number | null>(null);
-  const touchStartYRef = React.useRef<number | null>(null);
-  const swipedRef = React.useRef<boolean>(false);
-  const lastWheelTimeRef = React.useRef<number>(0);
-  const isMouseDownRef = React.useRef<boolean>(false);
-  const mouseStartXRef = React.useRef<number | null>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartXRef.current = e.touches[0].clientX;
-    touchStartYRef.current = e.touches[0].clientY;
-    swipedRef.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartXRef.current === null || touchStartYRef.current === null || swipedRef.current) return;
-    const currentX = e.touches[0].clientX;
-    const currentY = e.touches[0].clientY;
-    const diffX = currentX - touchStartXRef.current;
-    const diffY = currentY - touchStartYRef.current;
-
-    // Yatay hareket dikeyden belirginse ve 35px eşiğini aştıysa anında haftayı değiştir
-    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY) * 1.1) {
-      swipedRef.current = true;
-      if (diffX > 0) {
-        // Sağa kaydırma -> Önceki Hafta
-        handlePrevWeek();
-      } else {
-        // Sola kaydırma -> Sonraki Hafta
-        handleNextWeek();
-      }
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!swipedRef.current && touchStartXRef.current !== null && touchStartYRef.current !== null) {
-      const endX = e.changedTouches[0]?.clientX ?? touchStartXRef.current;
-      const endY = e.changedTouches[0]?.clientY ?? touchStartYRef.current;
-      const diffX = endX - touchStartXRef.current;
-      const diffY = endY - touchStartYRef.current;
-
-      // Hızlı dokunup bırakma (flick) hareketi
-      if (Math.abs(diffX) > 25 && Math.abs(diffX) > Math.abs(diffY)) {
-        swipedRef.current = true;
-        if (diffX > 0) {
-          handlePrevWeek();
-        } else {
-          handleNextWeek();
-        }
-      }
-    }
-    touchStartXRef.current = null;
-    touchStartYRef.current = null;
-    swipedRef.current = false;
-  };
-
-  const handleTouchCancel = () => {
-    touchStartXRef.current = null;
-    touchStartYRef.current = null;
-    swipedRef.current = false;
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    // Mac / iPad Magic Keyboard trackpad yatay kaydırma desteği
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 25) {
-      const now = Date.now();
-      if (now - lastWheelTimeRef.current < 450) return;
-      lastWheelTimeRef.current = now;
-      if (e.deltaX > 25) {
-        handleNextWeek();
-      } else if (e.deltaX < -25) {
-        handlePrevWeek();
-      }
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    // Buton veya görev tıklanmışsa sürüklemeyi başlatma
-    if ((e.target as HTMLElement).closest('button, input, textarea, .week-task-pill')) return;
-    isMouseDownRef.current = true;
-    mouseStartXRef.current = e.clientX;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isMouseDownRef.current || mouseStartXRef.current === null) return;
-    const diffX = e.clientX - mouseStartXRef.current;
-    if (Math.abs(diffX) > 50) {
-      isMouseDownRef.current = false;
-      mouseStartXRef.current = null;
-      if (diffX > 0) {
-        handlePrevWeek();
-      } else {
-        handleNextWeek();
-      }
-    }
-  };
-
-  const handleMouseUp = () => {
-    isMouseDownRef.current = false;
-    mouseStartXRef.current = null;
+  const handleToday = () => {
+    const today = new Date();
+    setViewDate(today);
+    onSelectDate(formatDateString(today));
   };
 
   // Haftanın 7 gününü hesapla
@@ -194,24 +104,11 @@ export const WeekView: React.FC<WeekViewProps> = ({
     }
   }, [weekDays]);
 
-  const isCurrentWeek = weekDays.some((d) => d.isToday);
-
   return (
-    <div
-      className="week-view-container"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchCancel}
-      onWheel={handleWheel}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-    >
-      {/* Week Navigation Header */}
-      <div className="week-nav-header">
-        <div className="week-range-title">
+    <div className="week-view-container">
+      {/* Week Navigation Header - Aynen Ay Değiştirme Butonları Gibi */}
+      <div className="month-nav-header">
+        <div className="month-title">
           {weekRangeLabel}
         </div>
 
@@ -220,28 +117,25 @@ export const WeekView: React.FC<WeekViewProps> = ({
             type="button"
             className="icon-btn"
             onClick={handlePrevWeek}
-            title="Önceki Hafta (Sola kaydırabilirsin)"
+            title="Önceki Hafta"
             style={{ width: 34, height: 34 }}
           >
             <ChevronLeft size={18} />
           </button>
 
-          {!isCurrentWeek && (
-            <button
-              type="button"
-              className="month-today-btn"
-              onClick={handleCurrentWeek}
-              title="Bu Haftaya Dön"
-            >
-              Bu Hafta
-            </button>
-          )}
+          <button
+            type="button"
+            className="month-today-btn"
+            onClick={handleToday}
+          >
+            Bugün
+          </button>
 
           <button
             type="button"
             className="icon-btn"
             onClick={handleNextWeek}
-            title="Sonraki Hafta (Sağa kaydırabilirsin)"
+            title="Sonraki Hafta"
             style={{ width: 34, height: 34 }}
           >
             <ChevronRight size={18} />

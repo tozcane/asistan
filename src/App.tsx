@@ -472,7 +472,6 @@ export default function App() {
         dayStats={dayStats}
         currentView={viewMode}
         onChangeView={setViewMode}
-        onOpenSiriModal={() => setIsSiriModalOpen(true)}
       />
 
       {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}

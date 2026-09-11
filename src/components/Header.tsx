@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight, Mic } from 'lucide-react';
+import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -14,7 +14,6 @@ interface HeaderProps {
   dayStats: DayStats;
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
-  onOpenSiriModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   dayStats,
   currentView,
   onChangeView,
-  onOpenSiriModal,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -38,71 +36,42 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="top-bar">
       {/* Brand & Actions */}
       <div className="top-bar-header">
-        <div className="brand-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="brand-title">
+          <div className="brand-icon" style={{
+            position: 'relative',
+            width: 34,
+            height: 34,
+            background: 'linear-gradient(135deg, #0A84FF 0%, #0056b3 100%)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(10, 132, 255, 0.35)',
+          }}>
+            {/* Takvim Simgesi */}
+            <Calendar size={18} color="#ffffff" strokeWidth={2.2} />
+
+            {/* Takvim Üzerindeki Kalem Simgesi */}
             <div
-              className="brand-icon"
               style={{
-                position: 'relative',
-                width: 34,
-                height: 34,
-                background: 'linear-gradient(135deg, #0A84FF 0%, #0056b3 100%)',
-                borderRadius: 10,
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                background: '#FF9F0A',
+                borderRadius: '50%',
+                width: 16,
+                height: 16,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(10, 132, 255, 0.35)',
+                border: '2px solid #000000',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.4)',
               }}
             >
-              {/* Takvim Simgesi */}
-              <Calendar size={18} color="#ffffff" strokeWidth={2.2} />
-
-              {/* Takvim Üzerindeki Kalem Simgesi */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: -2,
-                  right: -2,
-                  background: '#FF9F0A',
-                  borderRadius: '50%',
-                  width: 16,
-                  height: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px solid #000000',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.4)',
-                }}
-              >
-                <PenTool size={9} color="#ffffff" strokeWidth={2.6} />
-              </div>
+              <PenTool size={9} color="#ffffff" strokeWidth={2.6} />
             </div>
-            <span>Asistan</span>
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#30D158',
-              backgroundColor: 'rgba(48, 209, 88, 0.12)',
-              border: '1px solid rgba(48, 209, 88, 0.25)',
-              padding: '3px 9px',
-              borderRadius: 12,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                backgroundColor: '#30D158',
-              }}
-            />
-            Otomatik Kayıt Aktif
-          </div>
+          <span>Asistan</span>
         </div>
 
         <div className="header-actions">
@@ -113,20 +82,6 @@ export const Header: React.FC<HeaderProps> = ({
             title={isDarkMode ? 'Açık Moda Geç' : 'Koyu Moda Geç'}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          {/* Siri Voice Button */}
-          <button
-            className="icon-btn"
-            onClick={onOpenSiriModal}
-            title="Siri & Sesli Asistan (Mikrofon)"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255, 45, 85, 0.15) 0%, rgba(175, 82, 222, 0.15) 50%, rgba(10, 132, 255, 0.15) 100%)',
-              border: '1px solid rgba(175, 82, 222, 0.35)',
-              color: '#af52de',
-            }}
-          >
-            <Mic size={16} />
           </button>
         </div>
       </div>
