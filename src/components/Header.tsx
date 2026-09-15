@@ -4,7 +4,7 @@ import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
 
-export type ViewMode = 'day' | 'week' | 'month';
+export type ViewMode = 'list' | 'day' | 'week' | 'month';
 
 interface HeaderProps {
   selectedDate: string;
@@ -104,9 +104,16 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* View Mode Switcher: Günlük | Haftalık | Aylık */}
+      {/* View Mode Switcher: Liste | Günlük | Haftalık | Aylık */}
       <div className="view-switcher-bar">
         <div className="view-switcher">
+          <button
+            type="button"
+            className={`view-tab ${currentView === 'list' ? 'active' : ''}`}
+            onClick={() => onChangeView('list')}
+          >
+            Liste
+          </button>
           <button
             type="button"
             className={`view-tab ${currentView === 'day' ? 'active' : ''}`}

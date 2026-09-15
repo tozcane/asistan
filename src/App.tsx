@@ -5,6 +5,7 @@ import { getTodayDateString } from './utils/time';
 import { STRUCTURED_COLORS } from './constants/theme';
 import { Header, type ViewMode } from './components/Header';
 import { Timeline } from './components/Timeline';
+import { ListView } from './components/ListView';
 import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
 import { TaskModal } from './components/TaskModal';
@@ -536,7 +537,19 @@ export default function App() {
         onOpenMorningBriefing={() => setIsMorningModalOpen(true)}
       />
 
-      {/* Main View Area: Daily Timeline | Weekly View | Monthly View */}
+      {/* Main View Area: List View | Daily Timeline | Weekly View | Monthly View */}
+      {viewMode === 'list' && (
+        <ListView
+          tasks={tasks}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          onToggleComplete={handleToggleComplete}
+          onEditTask={handleEditTask}
+          onAddNewAtDate={handleAddNewAtDate}
+          onSwitchToDayView={handleSwitchToDayView}
+        />
+      )}
+
       {viewMode === 'day' && (
         <Timeline
           tasks={dayTasks}
