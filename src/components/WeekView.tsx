@@ -173,14 +173,6 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
         const holiday = getHolidayForDate(day.dateStr);
         const completedCount = dayTasks.filter((t) => t.completed).length;
-        const densityClass =
-          dayTasks.length >= 6
-            ? 'density-dense'
-            : dayTasks.length >= 4
-            ? 'density-compact'
-            : dayTasks.length >= 3
-            ? 'density-medium'
-            : 'density-normal';
 
         return (
           <div
@@ -223,7 +215,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
                     <span className="mobile-only">+ Ekle</span>
                   </div>
                 ) : (
-                  <div className={`week-strip-tasks-flow ${densityClass}`}>
+                  <div className="week-strip-tasks-flow">
                     {dayTasks.map((task) => (
                       <div
                         key={task.id}

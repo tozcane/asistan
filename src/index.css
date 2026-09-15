@@ -1038,7 +1038,7 @@ body {
 
 .week-strip-main-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -1054,6 +1054,7 @@ body {
   flex-shrink: 0;
   cursor: pointer;
   user-select: none;
+  padding-top: 3px;
 }
 
 .week-strip-num {
@@ -1115,20 +1116,20 @@ body {
   max-width: 130px;
 }
 
-/* Tasks Horizontal Flow */
+/* Tasks Column (Alt Alta) Flow */
 .week-strip-tasks-area {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  height: 100%;
+  padding: 1px 0;
 }
 
 .week-strip-tasks-flow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column; /* Alt alta eklensin */
+  align-items: stretch;
+  gap: 5px;
   width: 100%;
 }
 
@@ -1207,20 +1208,20 @@ body {
 }
 
 .week-task-pill {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 6px 8px;
-  border-radius: 11px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 9px;
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.18s ease;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
-  max-width: 280px;
-  flex: 0 1 auto;
-  min-width: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .week-task-pill:hover {
