@@ -1,4 +1,4 @@
-const CACHE_NAME = 'asistan-v5';
+const CACHE_NAME = 'asistan-v6';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
