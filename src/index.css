@@ -958,18 +958,19 @@ body {
   letter-spacing: -0.2px;
 }
 
-/* Week View Styles - Full Width Downward Equal Strips */
+/* Week View Styles - Dynamic Slim Strips expanding on content */
 .week-view-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 18px 80px;
+  gap: 7px;
+  padding: 6px 18px 85px;
   width: 100%;
-  max-width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
   box-sizing: border-box;
   flex: 1;
   min-height: calc(100dvh - 90px);
-  height: calc(100dvh - 90px);
+  height: auto;
   touch-action: pan-y pinch-zoom;
 }
 
@@ -984,7 +985,7 @@ body {
 }
 
 .week-range-title {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.3px;
   color: var(--text-primary);
@@ -1001,58 +1002,70 @@ body {
 .week-day-strip {
   background: var(--bg-card, #1c1c1e);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 12px 18px;
+  border-radius: 11px;
+  padding: 6px 14px;
   width: 100%;
   box-sizing: border-box;
   transition: all 0.2s ease;
-  flex: 1 1 0%; /* HEPSİ EŞİT ŞEKİLDE DİKEYDE DAĞILIR VE TAM SAYFAYA SIĞAR */
+  flex: none; /* Sabit eşit esneme kaldırıldı, ince ve dinamik */
   display: flex;
   align-items: center;
-  min-height: 64px; /* Kalın ve ferah yapı */
+  min-height: 40px; /* İnce ve zarif temel yükseklik */
+}
+
+.week-day-strip.is-empty {
+  min-height: 38px;
+  padding: 5px 14px;
+  opacity: 0.88;
+}
+
+.week-day-strip.has-tasks {
+  min-height: 46px;
+  padding: 7px 14px;
 }
 
 .week-day-strip:hover {
   background: var(--bg-card-hover, #242426);
   border-color: var(--border-strong);
+  opacity: 1;
 }
 
 .week-day-strip.today {
-  border: 2px solid #0a84ff;
+  border: 1.5px solid #0a84ff;
   background: rgba(10, 132, 255, 0.08);
-  box-shadow: 0 0 20px rgba(10, 132, 255, 0.15);
+  box-shadow: 0 0 16px rgba(10, 132, 255, 0.12);
 }
 
 .week-strip-main-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
 }
 
 /* Day Info Column */
 .week-strip-day-col {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 160px;
+  gap: 10px;
+  min-width: 140px;
   flex-shrink: 0;
   cursor: pointer;
   user-select: none;
 }
 
 .week-strip-num {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   background: var(--surface-color, rgba(255, 255, 255, 0.08));
   color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 800;
   flex-shrink: 0;
 }
@@ -1323,34 +1336,51 @@ body {
   .week-view-container {
     height: auto;
     min-height: calc(100dvh - 85px);
-    gap: 8px;
-    padding: 8px 12px 85px;
+    gap: 6px;
+    padding: 6px 10px 85px;
   }
 
   .week-day-strip {
     flex: none;
-    min-height: auto;
-    padding: 10px 14px;
+    min-height: 36px;
+    padding: 5px 10px;
+    border-radius: 9px;
+  }
+
+  .week-day-strip.is-empty {
+    min-height: 34px;
+    padding: 4px 8px;
+  }
+
+  .week-day-strip.is-empty .week-strip-tasks-area {
+    display: none;
+  }
+
+  .week-day-strip.has-tasks {
+    min-height: 44px;
+    padding: 6px 10px;
   }
 
   .week-strip-main-row {
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
   }
 
   .week-strip-day-col {
     min-width: auto;
     order: 1;
+    gap: 8px;
   }
 
   .week-strip-actions {
     order: 2;
+    margin-left: auto;
   }
 
   .week-strip-tasks-area {
     width: 100%;
     order: 3;
-    padding-top: 6px;
+    padding-top: 4px;
     border-top: 1px solid var(--border-subtle);
   }
 }

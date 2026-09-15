@@ -185,7 +185,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
         return (
           <div
             key={day.dateStr}
-            className={`week-day-strip ${day.isToday ? 'today' : ''}`}
+            className={`week-day-strip ${day.isToday ? 'today' : ''} ${dayTasks.length === 0 ? 'is-empty' : 'has-tasks'}`}
           >
             {/* Header / Day info for mobile and desktop */}
             <div className="week-strip-main-row">
