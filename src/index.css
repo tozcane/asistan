@@ -112,7 +112,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
+  width: 100%;
+  max-width: 100vw;
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -120,15 +129,26 @@ body {
   min-height: 100vh;
 }
 
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 /* App Viewport Container - Full Screen & Responsive */
 .app-viewport {
   width: 100%;
-  max-width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   background-color: var(--bg-app);
+  box-sizing: border-box;
 }
 
 /* Top App Bar */
@@ -984,18 +1004,21 @@ body {
   box-sizing: border-box;
 }
 
-.week-range-title {
+.week-range-title,
+.week-title {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.3px;
   color: var(--text-primary);
 }
 
-[data-theme='light'] .week-range-title {
+[data-theme='light'] .week-range-title,
+[data-theme='light'] .week-title {
   color: #000000 !important;
 }
 
-:root .week-range-title {
+:root .week-range-title,
+:root .week-title {
   color: #ffffff;
 }
 
@@ -1609,27 +1632,58 @@ body {
     height: 30px;
   }
 
+  /* View Switcher on mobile */
+  .view-switcher-bar {
+    padding: 0 8px;
+    margin: 8px 0 4px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .view-switcher {
-    padding: 2px;
+    width: 100%;
+    max-width: 380px;
+    padding: 3px;
+    gap: 2px;
+    display: flex;
+    box-sizing: border-box;
   }
 
   .view-tab {
-    padding: 4px 10px;
-    font-size: 12px;
-    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    padding: 5px 3px;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: center;
+    justify-content: center;
+    white-space: nowrap;
   }
 
+  /* Day Single Header on mobile */
   .day-single-header {
     padding: 4px 0 2px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .day-single-nav {
+    min-width: 0;
+    flex: 1;
+    gap: 6px;
+  }
+
+  .day-single-text-group {
+    min-width: 0;
   }
 
   .day-single-title {
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 700;
   }
 
   .day-single-subtitle {
-    font-size: 11px;
+    font-size: 10.5px;
   }
 
   .day-nav-arrow {
@@ -1638,47 +1692,65 @@ body {
   }
 
   .today-pill-btn {
-    padding: 4px 9px;
-    font-size: 11px;
+    padding: 3px 8px;
+    font-size: 10.5px;
   }
 
   .progress-pill-compact {
-    padding: 3px 8px;
-    font-size: 11px;
+    padding: 3px 7px;
+    font-size: 10.5px;
   }
 
   /* Timeline View on mobile */
-  .timeline-container {
-    padding: 8px 10px 85px;
+  .timeline-view {
+    padding: 8px 8px 85px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .timeline-spine {
+    left: 48px;
   }
 
   .timeline-row {
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 6px;
   }
 
   .time-col {
-    width: 44px;
+    width: 40px;
     font-size: 11px;
     font-weight: 600;
+    margin-right: 12px;
+  }
+
+  .now-indicator-row {
+    margin: 6px 0 10px 4px;
+    gap: 6px;
+  }
+
+  .now-badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 
   .task-card {
-    padding: 10px 12px;
+    padding: 8px 10px;
     border-radius: 12px;
+    min-width: 0;
   }
 
   .task-card-title {
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 700;
   }
 
   .task-card-time {
-    font-size: 11px;
+    font-size: 10.5px;
   }
 
   .free-time-card {
-    padding: 8px 10px;
+    padding: 6px 8px;
     border-radius: 10px;
     font-size: 11px;
   }
@@ -1688,14 +1760,106 @@ body {
   }
 
   .free-time-action {
-    font-size: 11px;
-    padding: 3px 8px;
+    font-size: 10.5px;
+    padding: 2px 6px;
   }
 
   /* Week View on mobile */
   .week-view-container {
-    padding: 6px 10px 85px;
+    padding: 6px 8px 85px;
     gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .week-nav-header {
+    padding: 2px 0 6px;
+    gap: 6px;
+  }
+
+  .week-title {
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+
+  .week-day-strip {
+    padding: 6px 8px;
+    border-radius: 9px;
+  }
+
+  .week-strip-main-row {
+    gap: 6px;
+  }
+
+  .week-strip-day-col {
+    gap: 6px;
+  }
+
+  .week-strip-num {
+    width: 26px;
+    height: 26px;
+    font-size: 13.5px;
+    font-weight: 800;
+    border-radius: 7px;
+  }
+
+  .week-strip-day-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .week-strip-today-badge {
+    font-size: 8.5px;
+    padding: 1px 3px;
+    border-radius: 3px;
+  }
+
+  .week-strip-holiday {
+    font-size: 9.5px;
+  }
+
+  .week-task-pill {
+    padding: 3px 6px;
+    font-size: 10.5px;
+    border-radius: 7px;
+    gap: 4px;
+  }
+
+  .week-task-title {
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+
+  .week-task-time {
+    font-size: 9.5px;
+  }
+
+  .week-strip-count {
+    font-size: 9.5px;
+    padding: 1px 5px;
+  }
+
+  .week-strip-add-btn {
+    width: 24px;
+    height: 24px;
+  }
+
+  .week-strip-goto-btn {
+    padding: 4px 8px;
+    font-size: 10.5px;
+    border-radius: 6px;
+  }
+
+  .week-strip-empty {
+    padding: 3px 6px;
+    font-size: 10.5px;
+  }
+
+  /* Month View on mobile */
+  .month-view-container {
+    padding: 8px 6px 85px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .month-nav-header {
@@ -1704,138 +1868,113 @@ body {
   }
 
   .month-title {
-    font-size: 16px;
+    font-size: 15.5px;
     font-weight: 700;
   }
 
   .month-today-btn {
-    padding: 4px 10px;
-    font-size: 11.5px;
-    border-radius: 9px;
-  }
-
-  .week-day-strip {
-    padding: 8px 10px;
-    border-radius: 11px;
-  }
-
-  .week-strip-main-row {
-    gap: 6px;
-  }
-
-  .week-strip-day-col {
-    gap: 8px;
-  }
-
-  .week-strip-num {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    font-weight: 800;
-    border-radius: 8px;
-  }
-
-  .week-strip-day-name {
-    font-size: 12.5px;
-    font-weight: 700;
-  }
-
-  .week-strip-today-badge {
-    font-size: 9px;
-    padding: 1px 4px;
-    border-radius: 4px;
-  }
-
-  .week-strip-holiday {
-    font-size: 10px;
-  }
-
-  .week-task-pill {
-    padding: 3px 8px;
+    padding: 4px 9px;
     font-size: 11px;
     border-radius: 8px;
-    gap: 5px;
   }
 
-  .week-task-title {
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  .week-task-time {
-    font-size: 10px;
-  }
-
-  .week-strip-count {
-    font-size: 10px;
-    padding: 2px 6px;
-  }
-
-  .week-strip-add-btn {
-    width: 26px;
-    height: 26px;
-  }
-
-  .week-strip-goto-btn {
-    padding: 5px 9px;
-    font-size: 11px;
-    border-radius: 7px;
-  }
-
-  .week-strip-empty {
-    padding: 4px 8px;
-    font-size: 11px;
-  }
-
-  /* Month View on mobile */
-  .month-view-container {
-    padding: 8px 10px 85px;
+  .month-calendar-grid {
+    gap: 3px;
   }
 
   .month-weekday-header {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 0;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 0;
   }
 
   .month-day-cell {
-    min-height: 52px;
-    padding: 3px 4px;
-    border-radius: 8px;
+    height: auto;
+    min-height: 50px;
+    max-height: none;
+    padding: 3px 3px;
+    border-radius: 7px;
   }
 
   .month-day-num {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
   }
 
   .month-task-pill {
-    font-size: 9.5px;
-    padding: 1px 3px;
-    border-radius: 4px;
+    font-size: 8.5px;
+    padding: 1px 2px;
+    border-radius: 3px;
     margin-top: 1px;
+  }
+
+  /* Modal Sheets on mobile */
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .modal-sheet {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 18px;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-body {
+    padding: 14px 16px;
+  }
+
+  .modal-footer {
+    padding: 12px 16px;
   }
 
   /* Bottom Floating Action Bar on mobile */
   .floating-bar {
     bottom: 12px;
     padding: 4px 6px;
-    gap: 6px;
+    gap: 5px;
+    max-width: calc(100vw - 16px);
   }
 
   .add-task-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 6px 11px;
+    font-size: 11.5px;
   }
 
   .siri-pill-btn {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 9px;
+    font-size: 11.5px;
   }
 
   .inbox-pill-btn {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 9px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 360px) {
+  .view-tab {
+    padding: 4px 2px;
+    font-size: 10.5px;
+  }
+
+  .floating-bar {
+    padding: 3px 4px;
+    gap: 4px;
+  }
+
+  .add-task-btn {
+    padding: 5px 8px;
+    font-size: 10.5px;
+  }
+
+  .siri-pill-btn,
+  .inbox-pill-btn {
+    padding: 5px 7px;
+    font-size: 10.5px;
   }
 }
 
@@ -2216,22 +2355,61 @@ body.pen-mode-active {
 
 @media (max-width: 640px) {
   .daily-notes-container {
-    padding: 10px 12px;
-    margin-top: 14px;
-    border-radius: 13px;
+    padding: 10px;
+    margin-top: 12px;
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .notes-section-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .notes-section-header {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .notes-palm-indicator {
+    margin-left: 0;
+    font-size: 10px;
+  }
+
+  .pen-tools-mode-bar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .daily-notes-pen-subbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pen-size-picker-group,
+  .pen-colors-picker-group {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
   }
 
   .daily-notes-content-box {
-    min-height: 250px;
-    height: 280px;
+    min-height: 230px;
+    height: 260px;
   }
 
   .daily-notes-textarea {
-    font-size: 12.5px;
+    font-size: 12px;
   }
 
   .canvas-watermark {
-    font-size: 11px;
+    font-size: 10.5px;
   }
 }
 
@@ -2833,66 +3011,80 @@ body.pen-mode-active {
 
 @media (max-width: 640px) {
   .list-view-container {
-    padding: 8px 10px 90px;
+    padding: 8px 8px 90px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .list-view-header {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     padding-bottom: 8px;
+    gap: 8px;
   }
 
   .list-view-title {
-    font-size: 15px;
+    font-size: 14.5px;
     min-width: auto;
   }
 
   .list-search-input {
-    width: 130px;
+    width: 110px;
   }
 
   .list-search-input:focus {
-    width: 160px;
+    width: 125px;
   }
 
   .list-day-section {
-    gap: 10px;
+    gap: 8px;
   }
 
   .list-day-date-col {
-    width: 44px;
+    width: 38px;
   }
 
   .list-day-badge {
-    width: 42px;
-    height: 42px;
-    border-radius: 11px;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
   }
 
   .list-day-badge .day-number {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .list-day-badge .day-name {
-    font-size: 9.5px;
+    font-size: 9px;
+  }
+
+  .list-day-header-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .day-full-label {
+    font-size: 12px;
+    gap: 4px;
   }
 
   .list-task-card {
-    padding: 8px 10px;
-    gap: 10px;
-    border-radius: 12px;
+    padding: 7px 8px;
+    gap: 8px;
+    border-radius: 11px;
+    min-width: 0;
   }
 
   .list-task-time-box {
-    width: 54px;
-    font-size: 11px;
+    width: 48px;
+    font-size: 10px;
   }
 
   .list-task-time-box .time-start {
-    font-size: 11.5px;
+    font-size: 11px;
   }
 
   .list-task-title {
-    font-size: 13px;
+    font-size: 12.5px;
   }
 
   .notes-snippet {
