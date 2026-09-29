@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Clock } from 'lucide-react';
+import { Check, Clock, Repeat } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '../types';
 import { calculateEndTime, formatDuration } from '../utils/time';
@@ -50,8 +50,27 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       <div className="task-card-main">
         {/* Task Details (Clean, no icons, no subtasks) */}
         <div className="task-content">
-          <div className="task-title" style={{ color: '#ffffff' }}>
-            {task.title}
+          <div className="task-title" style={{ color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span>{task.title}</span>
+            {task.recurringType && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                  padding: '1px 6px',
+                  borderRadius: 6,
+                  color: '#ffffff',
+                }}
+                title={task.recurringType === 'weekly' ? 'Her Hafta Tekrarlanır' : 'Her Yıl Tekrarlanır'}
+              >
+                <Repeat size={10} />
+                <span>{task.recurringType === 'weekly' ? 'Haftalık' : 'Yıllık'}</span>
+              </span>
+            )}
           </div>
 
           <div className="task-meta" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>

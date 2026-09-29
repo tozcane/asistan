@@ -385,18 +385,28 @@ export default function App() {
     });
   };
 
-  const handleSaveTask = (taskData: Omit<Task, 'id' | 'completed'> & { id?: string }) => {
+  const handleSaveTask = (
+    taskData: Omit<Task, 'id' | 'completed'> & { id?: string },
+    recurringTasks?: Array<Omit<Task, 'id' | 'completed'>>
+  ) => {
     lastLocalEditTimeRef.current = Date.now();
     setTasks((prev) => {
       let updated: Task[];
-      if (taskData.id) {
+      if (recurringTasks && recurringTasks.length > 0) {
+        const newTasks: Task[] = recurringTasks.map((tData, idx) => ({
+          ...tData,
+          id: 'task_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 5),
+          completed: false,
+        }));
+        updated = [...prev, ...newTasks];
+      } else if (taskData.id) {
         updated = prev.map((t) =>
           t.id === taskData.id ? { ...t, ...taskData, completed: t.completed } : t
         );
       } else {
         const newTask: Task = {
           ...taskData,
-          id: 'task_' + Date.now() + Math.random().toString(36).substr(2, 4),
+          id: 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
           completed: false,
         };
         updated = [...prev, newTask];
@@ -414,10 +424,16 @@ export default function App() {
     });
   };
 
-  const handleDeleteTask = (taskId: string) => {
+  const handleDeleteTask = (taskId: string, deleteAllRecurring = false) => {
     lastLocalEditTimeRef.current = Date.now();
     setTasks((prev) => {
-      const updated = prev.filter((t) => t.id !== taskId);
+      const target = prev.find((t) => t.id === taskId);
+      let updated: Task[];
+      if (deleteAllRecurring && target?.recurringSeriesId) {
+        updated = prev.filter((t) => t.recurringSeriesId !== target.recurringSeriesId);
+      } else {
+        updated = prev.filter((t) => t.id !== taskId);
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       if (syncRoom) {
         if (typeof navigator !== "undefined" && !navigator.onLine) {

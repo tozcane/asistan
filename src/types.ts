@@ -16,6 +16,9 @@ export interface Task {
   completed: boolean;
   subtasks?: Subtask[]; // Optional
   inInbox?: boolean; // If true, it's unscheduled in Inbox
+  recurringType?: 'weekly' | 'yearly'; // Tekrarlama türü
+  recurringSeriesId?: string; // Aynı tekrarlanan serideki tüm görevlerin ortak kimliği
+  recurringEndDate?: string; // Haftalık tekrarlarda bitiş tarihi (YYYY-MM-DD)
 }
 
 export type TimelineSlot = 

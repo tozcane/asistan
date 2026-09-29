@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Check, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Check, Clock, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import type { Task } from '../types';
 import { formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
@@ -239,6 +239,9 @@ export const WeekView: React.FC<WeekViewProps> = ({
                           )}
                         </button>
                         <span className="week-task-title">{task.title}</span>
+                        {task.recurringType && (
+                          <Repeat size={10} style={{ opacity: 0.85 }} />
+                        )}
                         {task.startTime && (
                           <span className="week-task-time">
                             <Clock size={10} /> {task.startTime}

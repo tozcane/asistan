@@ -1,15 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Repeat, Calendar } from 'lucide-react';
 import type { Task } from '../types';
 import { STRUCTURED_COLORS } from '../constants/theme';
 import { TimeSelect15 } from './TimeSelect15';
-import { calculateEndTime, parseTimeToMinutes, formatDuration } from '../utils/time';
+import {
+  calculateEndTime,
+  parseTimeToMinutes,
+  formatDuration,
+  getDefaultWeeklyEndDate,
+  generateRecurringDates,
+} from '../utils/time';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Omit<Task, 'id' | 'completed'> & { id?: string }) => void;
-  onDelete?: (taskId: string) => void;
+  onSave: (
+    task: Omit<Task, 'id' | 'completed'> & { id?: string },
+    recurringTasks?: Array<Omit<Task, 'id' | 'completed'>>
+  ) => void;
+  onDelete?: (taskId: string, deleteAllRecurring?: boolean) => void;
   initialTask?: Task | null;
   defaultDate: string;
   defaultStartTime?: string;
@@ -34,6 +43,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [notes, setNotes] = useState('');
   const [inInbox, setInInbox] = useState(false);
 
+  // Recurrence state
+  const [recurringType, setRecurringType] = useState<'none' | 'weekly' | 'yearly'>('none');
+  const [recurringEndDate, setRecurringEndDate] = useState<string>(() => getDefaultWeeklyEndDate(defaultDate));
+  const [showRecurringDeleteConfirm, setShowRecurringDeleteConfirm] = useState(false);
+
   // Compute duration in minutes dynamically from startTime and endTime
   const durationMinutes = (() => {
     const startMin = parseTimeToMinutes(startTime);
@@ -55,6 +69,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setColor(initialTask.color || STRUCTURED_COLORS[0].hex);
       setNotes(initialTask.notes || '');
       setInInbox(!!initialTask.inInbox);
+      setRecurringType(initialTask.recurringType || 'none');
+      setRecurringEndDate(initialTask.recurringEndDate || getDefaultWeeklyEndDate(initialTask.date));
+      setShowRecurringDeleteConfirm(false);
     } else {
       setTitle('');
       setDate(defaultDate);
@@ -63,6 +80,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setColor(STRUCTURED_COLORS[0].hex);
       setNotes('');
       setInInbox(false);
+      setRecurringType('none');
+      setRecurringEndDate(getDefaultWeeklyEndDate(defaultDate));
+      setShowRecurringDeleteConfirm(false);
     }
   }, [initialTask, isOpen, defaultDate, defaultStartTime, defaultDuration]);
 
@@ -78,7 +98,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   const handleSaveAndClose = () => {
     if (title.trim()) {
-      onSave({
+      const baseTask = {
         id: initialTask?.id,
         title: title.trim(),
         date,
@@ -87,7 +107,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         color,
         notes: notes.trim() || undefined,
         inInbox,
-      });
+        recurringType: recurringType !== 'none' ? recurringType : undefined,
+        recurringEndDate: recurringType === 'weekly' ? recurringEndDate : undefined,
+        recurringSeriesId: initialTask?.recurringSeriesId,
+      };
+
+      // If creating a brand new task with recurrence:
+      if (!initialTask && recurringType !== 'none' && !inInbox) {
+        const seriesId = 'rec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        const recurringDates = generateRecurringDates(date, recurringType, recurringEndDate);
+
+        const recurringTaskList: Array<Omit<Task, 'id' | 'completed'>> = recurringDates.map((d) => ({
+          ...baseTask,
+          date: d,
+          recurringType,
+          recurringSeriesId: seriesId,
+          recurringEndDate: recurringType === 'weekly' ? recurringEndDate : undefined,
+        }));
+
+        onSave(recurringTaskList[0], recurringTaskList);
+      } else {
+        onSave(baseTask);
+      }
     }
     onClose();
   };
@@ -101,7 +142,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     };
     if (isOpen) window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, title, date, startTime, endTime, durationMinutes, color, notes, inInbox, initialTask]);
+  }, [isOpen, title, date, startTime, endTime, durationMinutes, color, notes, inInbox, initialTask, recurringType, recurringEndDate]);
 
   // Real-time background auto-save for existing tasks
   useEffect(() => {
@@ -117,11 +158,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         color,
         notes: notes.trim() || undefined,
         inInbox,
+        recurringType: recurringType !== 'none' ? recurringType : undefined,
+        recurringSeriesId: initialTask.recurringSeriesId,
+        recurringEndDate: recurringType === 'weekly' ? recurringEndDate : undefined,
       });
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [title, date, startTime, endTime, durationMinutes, color, notes, inInbox, initialTask, isOpen]);
+  }, [title, date, startTime, endTime, durationMinutes, color, notes, inInbox, initialTask, isOpen, recurringType, recurringEndDate]);
 
   if (!isOpen) return null;
 
@@ -283,8 +327,151 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 type="date"
                 className="form-input"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  const newDate = e.target.value;
+                  setDate(newDate);
+                  if (recurringEndDate < newDate) {
+                    setRecurringEndDate(getDefaultWeeklyEndDate(newDate));
+                  }
+                }}
               />
+            </div>
+
+            {/* Recurrence Selector (Her Hafta & Her Yıl) */}
+            <div className="form-field">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Repeat size={14} color="#0A84FF" />
+                <span>Tekrarlama Seçeneği</span>
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setRecurringType('none')}
+                  style={{
+                    backgroundColor: recurringType === 'none' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                    border: recurringType === 'none' ? '1.5px solid var(--text-primary)' : '1px solid var(--border-subtle)',
+                    borderRadius: 10,
+                    padding: '8px 4px',
+                    color: recurringType === 'none' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>Tek Seferlik</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecurringType('weekly');
+                    if (!recurringEndDate || recurringEndDate < date) {
+                      setRecurringEndDate(getDefaultWeeklyEndDate(date));
+                    }
+                  }}
+                  style={{
+                    backgroundColor: recurringType === 'weekly' ? 'rgba(10, 132, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: recurringType === 'weekly' ? '1.5px solid #0A84FF' : '1px solid var(--border-subtle)',
+                    borderRadius: 10,
+                    padding: '8px 4px',
+                    color: recurringType === 'weekly' ? '#0A84FF' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Repeat size={13} />
+                  <span>Her Hafta</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRecurringType('yearly')}
+                  style={{
+                    backgroundColor: recurringType === 'yearly' ? 'rgba(255, 159, 10, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    border: recurringType === 'yearly' ? '1.5px solid #FF9F0A' : '1px solid var(--border-subtle)',
+                    borderRadius: 10,
+                    padding: '8px 4px',
+                    color: recurringType === 'yearly' ? '#FF9F0A' : 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Calendar size={13} />
+                  <span>Her Yıl</span>
+                </button>
+              </div>
+
+              {/* Weekly End Date Picker */}
+              {recurringType === 'weekly' && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '10px 12px',
+                    backgroundColor: 'rgba(10, 132, 255, 0.08)',
+                    border: '1px solid rgba(10, 132, 255, 0.2)',
+                    borderRadius: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0A84FF' }}>
+                      Tekrar Bitiş Tarihi:
+                    </span>
+                    <span style={{ fontSize: 10.5, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Bu tarihe kadar her hafta tekrarlanır
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={recurringEndDate}
+                    min={date}
+                    onChange={(e) => setRecurringEndDate(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Yearly Repeat Info */}
+              {recurringType === 'yearly' && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: '8px 12px',
+                    backgroundColor: 'rgba(255, 159, 10, 0.08)',
+                    border: '1px solid rgba(255, 159, 10, 0.2)',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    color: '#FF9F0A',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span>🎂 Her yıl aynı tarihte (5 yıl boyunca) otomatik takvime işlenecektir.</span>
+                </div>
+              )}
             </div>
 
             {/* Notes */}
@@ -307,8 +494,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 type="button"
                 className="btn-danger"
                 onClick={() => {
-                  if (confirm('Bu görevi silmek istediğinize emin misiniz?')) {
-                    onDelete(initialTask.id);
+                  if (initialTask.recurringSeriesId) {
+                    setShowRecurringDeleteConfirm(true);
+                  } else if (confirm('Bu görevi silmek istediğinize emin misiniz?')) {
+                    onDelete(initialTask.id, false);
                     onClose();
                   }
                 }}
@@ -341,6 +530,141 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
         </form>
+
+        {/* Recurring Task Deletion Confirmation Dialog */}
+        {showRecurringDeleteConfirm && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              borderRadius: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+              zIndex: 100,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 18,
+                padding: '20px 18px',
+                maxWidth: 360,
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+              }}
+            >
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 69, 58, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                }}
+              >
+                <Repeat size={22} color="#FF453A" />
+              </div>
+
+              <h4 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                Tekrarlanan Etkinliği Sil
+              </h4>
+              <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.45 }}>
+                Bu etkinlik tekrarlanan bir serinin parçası. Silme işlemini nasıl yapmak istersiniz?
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                <button
+                  type="button"
+                  style={{
+                    backgroundColor: 'rgba(255, 69, 58, 0.12)',
+                    border: '1px solid rgba(255, 69, 58, 0.3)',
+                    color: '#FF453A',
+                    padding: '11px 14px',
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                  onClick={() => {
+                    if (initialTask && onDelete) {
+                      onDelete(initialTask.id, false);
+                      setShowRecurringDeleteConfirm(false);
+                      onClose();
+                    }
+                  }}
+                >
+                  <Trash2 size={15} />
+                  <span>Sadece Bu Etkinliği Sil</span>
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    backgroundColor: '#FF453A',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '11px 14px',
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 14px rgba(255, 69, 58, 0.4)',
+                  }}
+                  onClick={() => {
+                    if (initialTask && onDelete) {
+                      onDelete(initialTask.id, true);
+                      setShowRecurringDeleteConfirm(false);
+                      onClose();
+                    }
+                  }}
+                >
+                  <X size={15} />
+                  <span>Tüm Tekrarlananları Sil</span>
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                    padding: '9px 14px',
+                    borderRadius: 12,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginTop: 4,
+                  }}
+                  onClick={() => setShowRecurringDeleteConfirm(false)}
+                >
+                  Vazgeç
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

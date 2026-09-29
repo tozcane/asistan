@@ -134,3 +134,46 @@ export function buildTimeline(tasks: Task[]): TimelineSlot[] {
 
   return slots;
 }
+
+export function getDefaultWeeklyEndDate(startDateStr: string): string {
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + 56); // 8 hafta (yaklaşık 2 ay) sonrası varsayılan
+  return formatDateString(dt);
+}
+
+export function generateRecurringDates(
+  startDateStr: string,
+  recurringType: 'weekly' | 'yearly',
+  endDateStr?: string
+): string[] {
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const dates: string[] = [];
+
+  if (recurringType === 'weekly') {
+    const finalEnd = endDateStr && endDateStr >= startDateStr
+      ? endDateStr
+      : getDefaultWeeklyEndDate(startDateStr);
+    
+    let curr = new Date(y, m - 1, d);
+    let count = 0;
+    while (count < 104) { // max 2 years safety limit
+      const ds = formatDateString(curr);
+      if (ds > finalEnd) break;
+      dates.push(ds);
+      curr.setDate(curr.getDate() + 7);
+      count++;
+    }
+  } else if (recurringType === 'yearly') {
+    // 5 yıl boyunca her yıl aynı tarihte tekrarla
+    const maxYears = 5;
+    for (let i = 0; i < maxYears; i++) {
+      const curr = new Date(y + i, m - 1, d);
+      const ds = formatDateString(curr);
+      if (endDateStr && ds > endDateStr) break;
+      dates.push(ds);
+    }
+  }
+
+  return dates.length > 0 ? dates : [startDateStr];
+}

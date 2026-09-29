@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   Circle,
   CalendarDays,
-  ArrowRight
+  ArrowRight,
+  Repeat
 } from 'lucide-react';
 import type { Task } from '../types';
 import {
@@ -84,19 +85,27 @@ export const ListView: React.FC<ListViewProps> = ({
     return tasks.filter((t) => !t.inInbox && t.date);
   }, [tasks]);
 
-  // Distinct sorted dates that have tasks, plus today
+  // Distinct sorted dates that have tasks - strictly starts from today onwards!
   const activeDates = useMemo(() => {
     const dateSet = new Set<string>();
     dateSet.add(todayStr);
-    if (selectedDate) dateSet.add(selectedDate);
+
+    const isSearching = !!searchTerm.trim();
 
     scheduledTasks.forEach((t) => {
-      if (t.date) dateSet.add(t.date);
+      if (!t.date) return;
+      if (isSearching) {
+        // Arama yapılıyorsa geçmişteki eşleşen görevleri de bulabilmesi için tüm tarihleri dahil et
+        dateSet.add(t.date);
+      } else if (t.date >= todayStr) {
+        // Normal liste görünümünde yalnızca bulunulan günden (bugünden) itibaren göster
+        dateSet.add(t.date);
+      }
     });
 
     const arr = Array.from(dateSet).sort();
     return arr;
-  }, [scheduledTasks, todayStr, selectedDate]);
+  }, [scheduledTasks, todayStr, searchTerm]);
 
   // Tasks mapped by date
   const tasksByDate = useMemo(() => {
@@ -332,6 +341,25 @@ export const ListView: React.FC<ListViewProps> = ({
                             <div className="list-task-main">
                               <div className="list-task-title-row">
                                 <span className="list-task-title">{task.title}</span>
+                                {task.recurringType && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 3,
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      color: '#0A84FF',
+                                      backgroundColor: 'rgba(10, 132, 255, 0.12)',
+                                      padding: '1px 6px',
+                                      borderRadius: 6,
+                                    }}
+                                    title={task.recurringType === 'weekly' ? 'Her Hafta Tekrarlanır' : 'Her Yıl Tekrarlanır'}
+                                  >
+                                    <Repeat size={10} />
+                                    <span>{task.recurringType === 'weekly' ? 'Haftalık' : 'Yıllık'}</span>
+                                  </span>
+                                )}
                                 {task.durationMinutes > 0 && (
                                   <span className="list-task-duration">
                                     <Clock size={11} />
