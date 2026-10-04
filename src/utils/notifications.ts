@@ -195,6 +195,16 @@ export function sendTaskStartNotification(task: Task) {
   const durationText = task.durationMinutes ? ` (${formatDuration(task.durationMinutes)})` : '';
   sendBrowserNotification(`⏰ Görev Zamanı: ${task.title}`, {
     body: `${task.startTime}${durationText} - Görevin başlama zamanı geldi!`,
-    tag: `task-${task.id}`,
+    tag: `task-start-${task.id}`,
   });
 }
+
+export function sendTaskReminderNotification(task: Task, minutesBefore: number = 60) {
+  playNotificationChime();
+  const timeDesc = minutesBefore === 60 ? '1 saat' : `${minutesBefore} dakika`;
+  sendBrowserNotification(`⏳ ${timeDesc} Sonra: ${task.title}`, {
+    body: `Saat ${task.startTime}'de başlayacak etkinliğinize ${timeDesc} kaldı!`,
+    tag: `task-remind-${minutesBefore}-${task.id}`,
+  });
+}
+

@@ -262,6 +262,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({ isOpen, on
               <Sparkles size={13} color="#0A84FF" />
               <span>Bildirim Özellikleri:</span>
             </div>
+            <div>• ⏳ <strong>1 Saat Önce:</strong> Etkinlik başlamadan tam 1 saat önce sesli ve titreşimli hatırlatma bildirimi.</div>
             <div>• ⏰ <strong>Görev Zamanı:</strong> Planlanan görevin başlangıç saatinde anlık uyarı.</div>
             <div>• ☀️ <strong>Sabah Özeti:</strong> Sabah ilk girişte günün planı ve toplam süre özeti.</div>
             <div>• 🔔 <strong>Ses & Titreşim:</strong> Mobil cihazlarda zil sesi ve titreşim desteği.</div>

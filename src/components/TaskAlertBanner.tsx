@@ -1,16 +1,18 @@
 import React, { useEffect } from 'react';
-import { Bell, Check, X, Clock } from 'lucide-react';
+import { Bell, Check, X, Clock, Hourglass } from 'lucide-react';
 import type { Task } from '../types';
 import { formatDuration } from '../utils/time';
 
 interface TaskAlertBannerProps {
   task: Task | null;
+  alertType?: '1h_before' | 'start';
   onClose: () => void;
   onComplete: (taskId: string) => void;
 }
 
 export const TaskAlertBanner: React.FC<TaskAlertBannerProps> = ({
   task,
+  alertType = 'start',
   onClose,
   onComplete,
 }) => {
@@ -25,7 +27,8 @@ export const TaskAlertBanner: React.FC<TaskAlertBannerProps> = ({
 
   if (!task) return null;
 
-  const taskColor = task.color || '#ff9f0a';
+  const isOneHourBefore = alertType === '1h_before';
+  const taskColor = task.color || (isOneHourBefore ? '#0A84FF' : '#ff9f0a');
 
   return (
     <div className="task-alert-banner-wrapper">
@@ -45,18 +48,24 @@ export const TaskAlertBanner: React.FC<TaskAlertBannerProps> = ({
             border: `1.5px solid ${taskColor}66`,
           }}
         >
-          <Bell size={18} className="task-alert-bell-anim" />
+          {isOneHourBefore ? (
+            <Hourglass size={18} className="task-alert-bell-anim" />
+          ) : (
+            <Bell size={18} className="task-alert-bell-anim" />
+          )}
         </div>
 
         {/* Content */}
         <div className="task-alert-content">
           <div className="task-alert-header-row">
             <span className="task-alert-tag" style={{ color: taskColor }}>
-              ⏰ GÖREV ZAMANI
+              {isOneHourBefore ? '⏳ 1 SAAT KALDI' : '⏰ GÖREV ZAMANI'}
             </span>
             <span className="task-alert-time">
               <Clock size={11} />
-              {task.startTime} ({formatDuration(task.durationMinutes)})
+              {isOneHourBefore
+                ? `Saat ${task.startTime} (1 saat sonra)`
+                : `${task.startTime} (${formatDuration(task.durationMinutes)})`}
             </span>
           </div>
           <div className="task-alert-title" title={task.title}>
@@ -66,15 +75,28 @@ export const TaskAlertBanner: React.FC<TaskAlertBannerProps> = ({
 
         {/* Actions */}
         <div className="task-alert-actions">
-          <button
-            type="button"
-            className="task-alert-complete-btn"
-            onClick={() => onComplete(task.id)}
-            title="Görevi Tamamla"
-          >
-            <Check size={14} strokeWidth={2.5} />
-            <span>Tamamla</span>
-          </button>
+          {isOneHourBefore ? (
+            <button
+              type="button"
+              className="task-alert-complete-btn"
+              onClick={onClose}
+              title="Hatırlatmayı Kapat"
+              style={{ background: 'var(--accent-blue)', color: '#ffffff' }}
+            >
+              <Check size={14} strokeWidth={2.5} />
+              <span>Anladım</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="task-alert-complete-btn"
+              onClick={() => onComplete(task.id)}
+              title="Görevi Tamamla"
+            >
+              <Check size={14} strokeWidth={2.5} />
+              <span>Tamamla</span>
+            </button>
+          )}
           <button
             type="button"
             className="task-alert-close-btn"

@@ -18,6 +18,7 @@ import { TaskAlertBanner } from './components/TaskAlertBanner';
 import {
   sendMorningSummaryNotification,
   sendTaskStartNotification,
+  sendTaskReminderNotification,
 } from './utils/notifications';
 import {
   getStoredRoom,
@@ -88,9 +89,30 @@ export default function App() {
     return () => window.removeEventListener('focus', updateNotificationStatus);
   }, []);
 
-  // Real-time task arrival alert
-  const [activeTaskAlert, setActiveTaskAlert] = useState<Task | null>(null);
-  const alertedTasksRef = useRef<Set<string>>(new Set());
+  // Real-time task arrival alert (1 hour before reminder OR start time)
+  const [activeTaskAlert, setActiveTaskAlert] = useState<{
+    task: Task;
+    type: '1h_before' | 'start';
+  } | null>(null);
+
+  const alertedTasksRef = useRef<Set<string>>((() => {
+    try {
+      const raw = sessionStorage.getItem('structured_alerted_keys');
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  })());
+
+  const markAlerted = (key: string) => {
+    alertedTasksRef.current.add(key);
+    try {
+      const arr = Array.from(alertedTasksRef.current).slice(-200);
+      sessionStorage.setItem('structured_alerted_keys', JSON.stringify(arr));
+    } catch {
+      // ignore
+    }
+  };
 
   // View Mode: 'day' | 'week' | 'month'
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -214,28 +236,40 @@ export default function App() {
     }
   }, [selectedDate, dayTasks]);
 
-  // Real-time task start time checker: Görev zamanı geldiğinde ana sayfaya bildirim ve ses gelir!
+  // Real-time task alerts: Etkinliklerden 1 saat önce VE başlama anında bildirim, ses ve uyarı!
   useEffect(() => {
     const checkTaskAlerts = () => {
-      const today = getTodayDateString();
       const now = new Date();
-      const currentHH = String(now.getHours()).padStart(2, '0');
-      const currentMM = String(now.getMinutes()).padStart(2, '0');
-      const currentTimeStr = `${currentHH}:${currentMM}`;
+      const nowMs = now.getTime();
 
-      // Bugünün başlamakta olan ve henüz tamamlanmamış görevini bul
-      const dueTask = tasks.find((t) => {
-        if (t.inInbox || t.completed || !t.startTime) return false;
-        if (t.date !== today) return false;
-        return t.startTime === currentTimeStr;
-      });
+      for (const t of tasks) {
+        if (t.inInbox || t.completed || !t.startTime || !t.date) continue;
 
-      if (dueTask) {
-        const alertKey = `${today}_${dueTask.id}_${dueTask.startTime}`;
-        if (!alertedTasksRef.current.has(alertKey)) {
-          alertedTasksRef.current.add(alertKey);
-          setActiveTaskAlert(dueTask);
-          sendTaskStartNotification(dueTask);
+        const [y, m, d] = t.date.split('-').map(Number);
+        const [th, tm] = t.startTime.split(':').map(Number);
+        if (isNaN(y) || isNaN(m) || isNaN(d) || isNaN(th) || isNaN(tm)) continue;
+
+        const taskStartMs = new Date(y, m - 1, d, th, tm, 0, 0).getTime();
+        const diffMinutes = Math.floor((taskStartMs - nowMs) / 60000);
+
+        // 1. Etkinlikten tam 1 saat (60 dakika) önce hatırlatma
+        if (diffMinutes >= 58 && diffMinutes <= 60) {
+          const reminderKey = `remind_1h_${t.date}_${t.id}_${t.startTime}`;
+          if (!alertedTasksRef.current.has(reminderKey)) {
+            markAlerted(reminderKey);
+            setActiveTaskAlert({ task: t, type: '1h_before' });
+            sendTaskReminderNotification(t, 60);
+          }
+        }
+
+        // 2. Etkinliğin başlama anı (0 - 1 dakika kala / anında)
+        if (diffMinutes >= -1 && diffMinutes <= 1) {
+          const startKey = `start_${t.date}_${t.id}_${t.startTime}`;
+          if (!alertedTasksRef.current.has(startKey)) {
+            markAlerted(startKey);
+            setActiveTaskAlert({ task: t, type: 'start' });
+            sendTaskStartNotification(t);
+          }
         }
       }
     };
@@ -534,9 +568,10 @@ export default function App() {
 
   return (
     <div className="app-viewport">
-      {/* Real-time Task Time Alert Banner (Görev zamanı geldiğinde ana sayfaya bildirim) */}
+      {/* Real-time Task Time Alert Banner (1 saat kala veya başlama zamanında uyarı) */}
       <TaskAlertBanner
-        task={activeTaskAlert}
+        task={activeTaskAlert ? activeTaskAlert.task : null}
+        alertType={activeTaskAlert ? activeTaskAlert.type : 'start'}
         onClose={() => setActiveTaskAlert(null)}
         onComplete={(taskId) => {
           handleToggleComplete(taskId);
