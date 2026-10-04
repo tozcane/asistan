@@ -1,4 +1,4 @@
-const CACHE_NAME = 'asistan-v7';
+const CACHE_NAME = 'asistan-v8';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -58,5 +58,22 @@ self.addEventListener('fetch', (event) => {
           return Promise.reject('no-match');
         });
       })
+  );
+});
+
+// Notification click handler: brings the application to foreground when notification banner is tapped
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
   );
 });

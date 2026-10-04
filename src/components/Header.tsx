@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -15,6 +15,8 @@ interface HeaderProps {
   currentView: ViewMode;
   onChangeView: (view: ViewMode) => void;
   onOpenMorningBriefing?: () => void;
+  onOpenNotifications?: () => void;
+  hasNotificationPermission?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentView,
   onChangeView,
   onOpenMorningBriefing,
+  onOpenNotifications,
+  hasNotificationPermission,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -80,6 +84,33 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="header-actions">
+          {/* Bildirim Ayarları Butonu */}
+          {onOpenNotifications && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onOpenNotifications}
+              title="Bildirim Ayarları & Test"
+              style={{ position: 'relative' }}
+            >
+              <Bell size={18} color={hasNotificationPermission ? '#30D158' : '#FF9F0A'} />
+              {!hasNotificationPermission && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    backgroundColor: '#FF9F0A',
+                    boxShadow: '0 0 6px rgba(255, 159, 10, 0.8)',
+                  }}
+                />
+              )}
+            </button>
+          )}
+
           {/* Sabah Özeti Butonu */}
           {onOpenMorningBriefing && (
             <button

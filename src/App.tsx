@@ -13,11 +13,11 @@ import { InboxDrawer } from './components/InboxDrawer';
 import { MorningNotification } from './components/MorningNotification';
 import { SyncModal } from './components/SyncModal';
 import { SiriVoiceModal } from './components/SiriVoiceModal';
+import { NotificationModal } from './components/NotificationModal';
 import { TaskAlertBanner } from './components/TaskAlertBanner';
 import {
   sendMorningSummaryNotification,
   sendTaskStartNotification,
-  requestNotificationPermission,
 } from './utils/notifications';
 import {
   getStoredRoom,
@@ -70,6 +70,23 @@ export default function App() {
 
   // Morning briefing modal state
   const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+
+  // Notification modal & permission state
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+  });
+
+  // Keep notification permission state updated when user switches apps or returns
+  useEffect(() => {
+    const updateNotificationStatus = () => {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        setHasNotificationPermission(Notification.permission === 'granted');
+      }
+    };
+    window.addEventListener('focus', updateNotificationStatus);
+    return () => window.removeEventListener('focus', updateNotificationStatus);
+  }, []);
 
   // Real-time task arrival alert
   const [activeTaskAlert, setActiveTaskAlert] = useState<Task | null>(null);
@@ -188,16 +205,8 @@ export default function App() {
     if (selectedDate === today && lastNotifiedDate !== today && currentHour >= 5 && currentHour < 13) {
       const timer = setTimeout(() => {
         setIsMorningModalOpen(true);
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-          if (Notification.permission === 'granted') {
-            sendMorningSummaryNotification(dayTasks);
-          } else if (Notification.permission === 'default') {
-            requestNotificationPermission().then((perm) => {
-              if (perm === 'granted') {
-                sendMorningSummaryNotification(dayTasks);
-              }
-            });
-          }
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          sendMorningSummaryNotification(dayTasks);
         }
         localStorage.setItem('structured_last_morning_date', today);
       }, 600);
@@ -551,6 +560,8 @@ export default function App() {
         currentView={viewMode}
         onChangeView={setViewMode}
         onOpenMorningBriefing={() => setIsMorningModalOpen(true)}
+        onOpenNotifications={() => setIsNotificationModalOpen(true)}
+        hasNotificationPermission={hasNotificationPermission}
       />
 
       {/* Main View Area: List View | Daily Timeline | Weekly View | Monthly View */}
@@ -675,6 +686,17 @@ export default function App() {
         onAddTasks={handleSaveMultipleTasks}
         selectedDate={selectedDate}
         currentRoom={syncRoom}
+      />
+
+      {/* Device Notifications Modal (Telefon, Tablet & PC Bildirim Ayarları) */}
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => {
+          setIsNotificationModalOpen(false);
+          if (typeof window !== 'undefined' && 'Notification' in window) {
+            setHasNotificationPermission(Notification.permission === 'granted');
+          }
+        }}
       />
     </div>
   );
