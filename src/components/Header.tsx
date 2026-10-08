@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
+import { Sun, Moon, Sparkles, Calendar, PenTool, ChevronLeft, ChevronRight, Bell, CalendarPlus } from 'lucide-react';
 import { getTurkishDateLabel, formatDateString } from '../utils/time';
 import { getHolidayForDate } from '../utils/holidays';
 import type { DayStats } from '../types';
@@ -17,6 +17,7 @@ interface HeaderProps {
   onOpenMorningBriefing?: () => void;
   onOpenNotifications?: () => void;
   hasNotificationPermission?: boolean;
+  onOpenImport?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMorningBriefing,
   onOpenNotifications,
   hasNotificationPermission,
+  onOpenImport,
 }) => {
 
   const dateLabels = getTurkishDateLabel(selectedDate);
@@ -108,6 +110,19 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                 />
               )}
+            </button>
+          )}
+
+          {/* Tan Balat Etkinliklerini İçe Aktar Butonu */}
+          {onOpenImport && (
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={onOpenImport}
+              title="Tan Balat Etkinliklerini İçe Aktar"
+              style={{ color: '#0A84FF' }}
+            >
+              <CalendarPlus size={18} />
             </button>
           )}
 

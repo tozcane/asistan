@@ -14,6 +14,7 @@ import { MorningNotification } from './components/MorningNotification';
 import { SyncModal } from './components/SyncModal';
 import { SiriVoiceModal } from './components/SiriVoiceModal';
 import { NotificationModal } from './components/NotificationModal';
+import { ImportTanModal } from './components/ImportTanModal';
 import { TaskAlertBanner } from './components/TaskAlertBanner';
 import {
   sendMorningSummaryNotification,
@@ -74,6 +75,7 @@ export default function App() {
 
   // Notification modal & permission state
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isImportTanModalOpen, setIsImportTanModalOpen] = useState(false);
   const [hasNotificationPermission, setHasNotificationPermission] = useState<boolean>(() => {
     return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
   });
@@ -428,6 +430,33 @@ export default function App() {
     });
   };
 
+  const handleImportTanTasks = (importedTasks: Task[], skipDuplicates: boolean) => {
+    lastLocalEditTimeRef.current = Date.now();
+    setTasks((prev) => {
+      let filteredNew = [...importedTasks];
+      if (skipDuplicates) {
+        filteredNew = filteredNew.filter((newTask) => {
+          return !prev.some(
+            (t) =>
+              t.date === newTask.date &&
+              t.title.trim().toLowerCase() === newTask.title.trim().toLowerCase()
+          );
+        });
+      }
+      const updated = [...prev, ...filteredNew];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      if (syncRoom) {
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          hasOfflineChangesRef.current = true;
+          localStorage.setItem("structured_has_offline_changes", "true");
+        } else {
+          pushRoomTasks(syncRoom, updated);
+        }
+      }
+      return updated;
+    });
+  };
+
   const handleSaveTask = (
     taskData: Omit<Task, 'id' | 'completed'> & { id?: string },
     recurringTasks?: Array<Omit<Task, 'id' | 'completed'>>
@@ -597,6 +626,7 @@ export default function App() {
         onOpenMorningBriefing={() => setIsMorningModalOpen(true)}
         onOpenNotifications={() => setIsNotificationModalOpen(true)}
         hasNotificationPermission={hasNotificationPermission}
+        onOpenImport={() => setIsImportTanModalOpen(true)}
       />
 
       {/* Main View Area: List View | Daily Timeline | Weekly View | Monthly View */}
@@ -732,6 +762,13 @@ export default function App() {
             setHasNotificationPermission(Notification.permission === 'granted');
           }
         }}
+      />
+
+      {/* Tan Balat Events Import Modal */}
+      <ImportTanModal
+        isOpen={isImportTanModalOpen}
+        onClose={() => setIsImportTanModalOpen(false)}
+        onImportTasks={handleImportTanTasks}
       />
     </div>
   );
