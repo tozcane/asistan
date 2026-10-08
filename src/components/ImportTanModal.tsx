@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, CalendarPlus, Copy, Check, Sparkles, AlertCircle } from 'lucide-react';
 import type { Task } from '../types';
 import { parseTanEvents } from '../utils/tanImporter';
+import { TAN_EVENTS } from '../data/tanEvents';
 
 interface ImportTanModalProps {
   isOpen: boolean;
@@ -86,6 +87,55 @@ export const ImportTanModal: React.FC<ImportTanModalProps> = ({
               <span>Harika! {successCount} etkinlik başarıyla Asistan takviminize eklendi 🎉</span>
             </div>
           )}
+
+          {/* 1-Click Ready Seed Card */}
+          <div
+            style={{
+              padding: '14px 16px',
+              borderRadius: 14,
+              background: 'linear-gradient(135deg, rgba(10, 132, 255, 0.15), rgba(48, 209, 88, 0.15))',
+              border: '1px solid rgba(10, 132, 255, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🏫</span> Tan Balat 2026-2027 Takvimi Hazır
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
+                Sistemde hazır <strong>{TAN_EVENTS.length}</strong> etkinlik ve sınav bulunmaktadır.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onImportTasks(TAN_EVENTS, skipDuplicates);
+                setSuccessCount(TAN_EVENTS.length);
+                setTimeout(() => {
+                  setSuccessCount(null);
+                  onClose();
+                }, 1600);
+              }}
+              style={{
+                padding: '9px 15px',
+                borderRadius: 10,
+                background: 'var(--accent-blue)',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: 12,
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                boxShadow: '0 2px 8px rgba(10, 132, 255, 0.35)',
+              }}
+            >
+              Hepsini Yükle
+            </button>
+          </div>
 
           {/* Guide Steps Card */}
           <div

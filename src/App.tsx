@@ -16,6 +16,7 @@ import { SiriVoiceModal } from './components/SiriVoiceModal';
 import { NotificationModal } from './components/NotificationModal';
 import { ImportTanModal } from './components/ImportTanModal';
 import { TaskAlertBanner } from './components/TaskAlertBanner';
+import { TAN_EVENTS } from './data/tanEvents';
 import {
   sendMorningSummaryNotification,
   sendTaskStartNotification,
@@ -50,15 +51,27 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(getInitialTheme);
 
   const [tasks, setTasks] = useState<Task[]>(() => {
+    let initial: Task[] = [];
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        initial = JSON.parse(saved);
       } catch (e) {
         // invalid json
       }
     }
-    return [];
+
+    // Tan Balat 2026-2027 takvimini sisteme otomatik yükle (mükerrer olmadan)
+    const isTanSeeded = localStorage.getItem('structured_tan_seeded_v1');
+    if (!isTanSeeded) {
+      const existingKeys = new Set(initial.map((t) => `${t.date}_${t.title.trim().toLowerCase()}`));
+      const toAdd = TAN_EVENTS.filter((t) => !existingKeys.has(`${t.date}_${t.title.trim().toLowerCase()}`));
+      initial = [...initial, ...toAdd];
+      localStorage.setItem('structured_tan_seeded_v1', 'true');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    }
+
+    return initial;
   });
 
   // Modal states
